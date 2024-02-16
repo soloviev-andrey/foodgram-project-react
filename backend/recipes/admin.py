@@ -1,9 +1,11 @@
 from django.contrib import admin
-
 from .models import (
-    Tag, 
-    Ingredient, 
+    Tag,
+    Ingredient,
     Recipe,
+    IngredientsRecipe,
+    Favorite,
+    ShoppingCart
 )
 
 admin.site.empty_value_display = 'Не задано'
@@ -16,7 +18,7 @@ class IngredientAdmin(admin.ModelAdmin):
         'measurement_unit'
     )
 
-    list_filter = ('name')
+    list_filter = ('name',)
 
 
 class RecipeAdmin(admin.ModelAdmin):
@@ -35,6 +37,9 @@ class RecipeAdmin(admin.ModelAdmin):
 admin.site.register(Tag)
 admin.site.register(Ingredient, IngredientAdmin)
 admin.site.register(Recipe, RecipeAdmin)
+admin.site.register(IngredientsRecipe)
+admin.site.register(Favorite)
+admin.site.register(ShoppingCart)
 
 
 # Register your models here.
