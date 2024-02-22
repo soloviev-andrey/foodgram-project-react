@@ -39,7 +39,7 @@ class CustomUser(AbstractUser):
 class Subscrime(models.Model):
     '''Модель подписки'''
 
-    users = models.ForeignKey(
+    user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
         related_name='follower',
@@ -58,4 +58,3 @@ class Subscrime(models.Model):
 
     def __str__(self) -> str:
         return f'{self.user} подписан на {self.author}'
-
