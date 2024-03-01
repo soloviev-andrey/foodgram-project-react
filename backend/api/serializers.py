@@ -3,7 +3,6 @@ from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from rest_framework import (
     serializers,
-    exceptions,
     validators,
 )
 from users.models import CustomUser, Subscrime
@@ -19,9 +18,6 @@ from recipes.models import (
     Recipe,
 )
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
 
 
 class CustomUserCreateSerializer(UserCreateSerializer):
@@ -217,7 +213,10 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         
         unique_rec = []
         for ingredient in ingredients:
-            ing = get_object_or_404(Ingredient, id=ingredient.get('id'))
+            ing = get_object_or_404(
+                Ingredient,
+                id=ingredient.get('id'),
+            )
             if ing in unique_rec:
                 raise serializers.ValidationError(
                     'Не стоит добавлять один и тот же ингредиент много раз!'
