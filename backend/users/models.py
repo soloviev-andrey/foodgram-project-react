@@ -42,7 +42,7 @@ class Subscrime(models.Model):
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='follower',
+        related_name='subscribe',
         verbose_name='Подписчик'
     )
     author = models.ForeignKey(
@@ -55,6 +55,11 @@ class Subscrime(models.Model):
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
+
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'author'],
+                                    name='unique_subscriber'),
+        ]
 
     def __str__(self) -> str:
         return f'{self.user} подписан на {self.author}'

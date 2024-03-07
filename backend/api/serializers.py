@@ -19,21 +19,6 @@ from recipes.models import (
 )
 from djoser.serializers import UserCreateSerializer, UserSerializer
 
-
-class CustomUserCreateSerializer(UserCreateSerializer):
-    '''Сериализатор регистрации и создания пользователя'''
-    class Meta:
-        model = CustomUser
-        fields = (
-            'id',
-            'username',
-            'email',
-            'password',
-            'first_name',
-            'last_name'
-        )
-
-
 class CustomUserSerializer(UserSerializer):
     '''Сериализатор отображения пользователя'''
     is_subscribed = serializers.SerializerMethodField()
@@ -48,15 +33,29 @@ class CustomUserSerializer(UserSerializer):
             'last_name',
             'is_subscribed',
         )
-
+    
     def get_is_subscribed(self, obj):
-        user_id = self.context.get('request').user.id
-        return Subscrime.objects.filter(
-            author=obj.id,
-            user=user_id
-        ).exists()
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Subscrime.objects.filter(
+                user=request.user,
+                author=obj
+            ).exists()
+        return False
 
-
+class CustomUserCreateSerializer(UserCreateSerializer):
+    '''Сериализатор регистрации и создания пользователя'''
+    class Meta:
+        model = CustomUser
+        fields = (
+            'id',
+            'username',
+            'email',
+            'password',
+            'first_name',
+            'last_name',
+        )
+        
 class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
     class Meta:
@@ -125,7 +124,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True,
         source='recipe_ingredients'
     )
-    image = Base64ImageField()
+    image = Base64ImageField(required=False, allow_null=True)
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
 
@@ -285,9 +284,9 @@ class RecipeCutSerializer(serializers.ModelSerializer):
 
 
 class SubscrimeSerializer(serializers.ModelSerializer):
-    is_subscribed = serializers.SerializerMethodField()
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.SerializerMethodField()
+    recipes_count = serializers.ReadOnlyField(source='author.recipes.count')
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscrime
