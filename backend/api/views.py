@@ -3,7 +3,6 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from api.pagination import LimitPageNumberPagination
 from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import exceptions, status, viewsets
@@ -21,78 +20,63 @@ from .serializers import (CustomUserSerializer, IngredientSerializer,
 
 
 class CustomUserViewSet(UserViewSet):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
     permission_classes = (IsAuthenticatedOrReadOnly,)
 
     @action(
+        detail=True,
+        methods=['POST', 'DELETE'],
+        url_path='subscribe',
+        url_name='subscribe',
+        permission_classes=(IsAuthenticated,),
+    )
+    def subscribe(self, request, **kwargs):
+        author = get_object_or_404(CustomUser, id=self.kwargs.get('id'))
+        subscription, created = Subscrime.objects.get_or_create(
+            user=request.user,
+            author=author
+        )
+        if request.method == 'POST' and not created:
+            raise exceptions.ValidationError(
+                detail='Вы уже подписались на данного автора!'
+            )
+        if request.method == 'POST':
+            serializer = SubscrimeSerializer(
+                author,
+                context={'request': request}
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
         detail=False,
-        methods=("get",),
+        methods=['GET'],
+        url_path='subscriptions',
+        url_name='subscriptions',
         permission_classes=(IsAuthenticated,),
     )
     def subscriptions(self, request):
-        """Список авторов, на которых подписан пользователь."""
-        user = self.request.user
-        queryset = user.subscribe.all()
-        pages = self.paginate_queryset(queryset)
+        queryset = CustomUser.objects.filter(subscriber__user=self.request.user)
         serializer = SubscrimeSerializer(
-            pages, many=True, context={"request": request}
+            self.paginate_queryset(queryset),
+            context={'request': request},
+            many=True
         )
         return self.get_paginated_response(serializer.data)
 
-    @action(
-        detail=True,
-        methods=("post", "delete"),
-    )
-    def subscribe(self, request, id=None):
-        """Подписка на автора."""
-        user = self.request.user
-        author = get_object_or_404(CustomUser, pk=id)
 
-        if user == author:
-            return Response(
-                {"errors": "Нельзя подписаться или отписаться от себя!"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if self.request.method == "POST":
-            if Subscrime.objects.filter(user=user, author=author).exists():
-                return Response(
-                    {"errors": "Подписка уже оформлена!"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            queryset = Subscrime.objects.create(author=author, user=user)
-            serializer = SubscrimeSerializer(
-                queryset, context={"request": request}
-            )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        if self.request.method == "DELETE":
-            if not Subscrime.objects.filter(
-                user=user, author=author
-            ).exists():
-                return Response(
-                    {"errors": "Вы уже отписаны!"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            subscription = get_object_or_404(
-                Subscrime, user=user, author=author
-            )
-            subscription.delete()
-
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    permission_classes = (IsAuthorOrReadOnly,)
     pagination_class = None
 
 
-class IngredienViewSet(viewsets.ReadOnlyModelViewSet):
+class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.all()
+    filter_backends = (DjangoFilterBackend,)
     filter_backends = IngredientSearchFilter
     search_fields = ('^name',)
 

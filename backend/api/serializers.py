@@ -19,6 +19,7 @@ from recipes.models import (
 )
 from djoser.serializers import UserCreateSerializer, UserSerializer
 
+
 class CustomUserSerializer(UserSerializer):
     '''Сериализатор отображения пользователя'''
     is_subscribed = serializers.SerializerMethodField()
@@ -43,6 +44,7 @@ class CustomUserSerializer(UserSerializer):
             ).exists()
         return False
 
+
 class CustomUserCreateSerializer(UserCreateSerializer):
     '''Сериализатор регистрации и создания пользователя'''
     class Meta:
@@ -55,7 +57,8 @@ class CustomUserCreateSerializer(UserCreateSerializer):
             'first_name',
             'last_name',
         )
-        
+
+       
 class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
     class Meta:
@@ -118,7 +121,7 @@ class Base64ImageField(serializers.ImageField):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    tag = TagSerializer(many=True)
+    tags = TagSerializer(many=True)
     author = CustomUserSerializer(read_only=True)
     ingredients = IngredientsRecipeSerializer(
         many=True,
@@ -137,11 +140,14 @@ class RecipeSerializer(serializers.ModelSerializer):
             recipe=obj
         ).exists()
 
+    def get_is_related(self, obj, model):
+        return self.check_recipe(model, obj)
+
     def get_is_favorited(self, obj):
-        return self.check_recipe(Favorite, obj)
+        return self.get_is_related(obj, Favorite)
 
     def get_is_in_shopping_cart(self, obj):
-        return self.check_recipe(ShoppingCart, obj)
+        return self.get_is_related(obj, ShoppingCart)
 
     class Meta:
         model = Recipe
@@ -192,6 +198,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_cooking_time(self, value):
+        '''Валидация времени готовки'''
         if value < 1 or value > 1000:
             raise serializers.ValidationError(
                 'Пожалуйста, указывайте правильное время готовки!'
@@ -199,6 +206,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        '''Дополнительная валидация'''
         ingredients = attrs.get('ingredients')
         tags = attrs.get('tags')
         if not ingredients:
@@ -233,21 +241,23 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create_tags_recipe(self, tags, recipe):
-        for tag in tags:
-            RecipeTag.objects.create(
-                tag_id=tag.id,
-                recipe=recipe
-            )
+        '''Создание связей рецепта с тегами'''
+        RecipeTag.objects.bulk_create([
+            RecipeTag(tag_id=tag.id, recipe=recipe) for tag in tags
+        ])
 
     def create_ingredients_recipe(self, ingredients, recipe):
-        for ingredient in ingredients:
-            IngredientsRecipe.objects.create(
+        '''Создание связей рецепта с ингредиентами'''
+        IngredientsRecipe.objects.bulk_create([
+            IngredientsRecipe(
                 ingredient_id=ingredient.get('id'),
                 amount=ingredient.get('amount'),
                 recipe=recipe
-            )
+            ) for ingredient in ingredients
+        ])
 
     def create(self, validated_data):
+        '''Создание рецепта'''
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         author = self.context.get('request').user
@@ -262,10 +272,11 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             )
 
     def update(self, instance, validated_data):
+        '''Обновление рецепта'''
         instance.tags.clear()
+        IngredientsRecipe.objects.filter(recipe=instance).delete()
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
-        IngredientsRecipe.objects.filter(recipe=instance).delete()
         self.create_ingredients_recipe(ingredients, instance)
         self.create_tags_recipe(tags, instance)
         super().update(instance, validated_data)

@@ -1,6 +1,6 @@
 from django.core.validators import MinValueValidator
 from django.db import models
-from recipes.validators import validate_color
+from recipes.validators import validate_color, CustomTimeValidate
 from users.models import CustomUser
 
 
@@ -48,10 +48,10 @@ class Ingredient(models.Model):
 
     class Meta:
         verbose_name = 'Ингредиент'
-        verbose_name_plural = 'Ингредиент'
+        verbose_name_plural = 'Ингредиенты'
 
     def __str__(self):
-        return f'{self.name}, {self.measurement_unit}'
+        return f'{self.name} - {self.measurement_unit}'
 
 
 class Recipe(models.Model):
@@ -85,9 +85,8 @@ class Recipe(models.Model):
         related_name='recipes',
         verbose_name='Ингредиенты',
     )
-    cooking_time = models.PositiveIntegerField(
-        'Время приготовления в минутах',
-        validators=[MinValueValidator(1)]
+    cooking_time = CustomTimeValidate(
+        'Время приготовления в минутах'
     )
     pub_data = models.DateTimeField(
         'Время публикации',
@@ -110,6 +109,7 @@ class IngredientsRecipe(models.Model):
         Recipe,
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
+        related_name='recipe_ingredients',
     )
     ingredient = models.ForeignKey(
         Ingredient,
@@ -122,11 +122,11 @@ class IngredientsRecipe(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Ингредиенты'
-        verbose_name_plural = 'Ингредиенты'
+        verbose_name = 'Связь ингредиента и рецепта'
+        verbose_name_plural = 'Связь ингредиентов и рецептов'
 
     def __str__(self):
-        return f'{self.recipe} состоит из ингредиентов {self.ingredient}'
+        return f'{self.ingredient} входит в основу {self.recipe}'
 
 
 class RecipeTag(models.Model):
@@ -160,7 +160,7 @@ class Favorite(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        related_name='favorite',
+        related_name='favorites',
         verbose_name='Рецепт'
     )
 

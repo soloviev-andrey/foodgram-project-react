@@ -1,45 +1,93 @@
 from django.contrib import admin
+from django.core.exceptions import ValidationError
+from django.forms.models import BaseInlineFormSet
+
 from .models import (
-    Tag,
     Ingredient,
+    Tag,
     Recipe,
     IngredientsRecipe,
+    RecipeTag,
     Favorite,
     ShoppingCart
 )
 
-admin.site.empty_value_display = 'Не задано'
 
-
+@admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-
     list_display = (
+        'id',
         'name',
         'measurement_unit'
     )
-
     list_filter = ('name',)
 
 
-class RecipeAdmin(admin.ModelAdmin):
+class IngredientRecipeForm(BaseInlineFormSet):
 
+    def clean(self):
+        super(IngredientRecipeForm, self).clean()
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            data = form.cleaned_data
+            if data.get('DELETE'):
+                raise ValidationError(
+                    'Нельзя удалять все ингредиенты из рецепта даже в админке!'
+                )
+
+
+class IngredientRecipeInLine(admin.TabularInline):
+    model = IngredientsRecipe
+    min_num = 1
+    formset = IngredientRecipeForm
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
     list_display = (
+        'id',
         'name',
-        'author'
+        'color',
+        'slug'
     )
-    list_filter = (
+
+
+class RecipeTagForm(BaseInlineFormSet):
+
+    def clean(self):
+        super(RecipeTagForm, self).clean()
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            data = form.cleaned_data
+            if data.get('DELETE'):
+                raise ValidationError(
+                    'Нельзя удалять все теги из рецепта даже в админке!'
+                )
+
+
+class TagRecipeInLine(admin.TabularInline):
+    model = RecipeTag
+    min_num = 1
+    formset = RecipeTagForm
+
+
+@admin.register(Recipe)
+class RecipeAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'name',
         'author',
-        'name',
-        'tags'
+        'count_favorite'
     )
+    list_filter = ('author', 'tags')
+    search_fields = ('name',)
+    inlines = (IngredientRecipeInLine, TagRecipeInLine)
+
+    def count_favorite(self, obj):
+        return obj.favorites.count()
 
 
-admin.site.register(Tag)
-admin.site.register(Ingredient, IngredientAdmin)
-admin.site.register(Recipe, RecipeAdmin)
-admin.site.register(IngredientsRecipe)
 admin.site.register(Favorite)
 admin.site.register(ShoppingCart)
-
-
-# Register your models here.
