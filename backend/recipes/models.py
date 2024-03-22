@@ -9,7 +9,7 @@ class Tag(models.Model):
 
     name = models.CharField(
         'Название',
-        max_length=200,
+        max_length=30,
         unique=True,
     )
     color = models.CharField(
@@ -39,16 +39,18 @@ class Ingredient(models.Model):
 
     name = models.CharField(
         'Наименование ингредиента',
-        max_length=200
+        max_length=200,
     )
     measurement_unit = models.CharField(
         'Единицы измерения',
-        max_length=200
+        max_length=200,
     )
 
     class Meta:
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
+        ordering = ('pk',)
+
 
     def __str__(self):
         return f'{self.name} - {self.measurement_unit}'
@@ -59,7 +61,6 @@ class Recipe(models.Model):
     tags = models.ManyToManyField(
         Tag,
         through='RecipeTag',
-        related_name='recipes',
         verbose_name='Теги рецепта',
     )
     author = models.ForeignKey(
@@ -74,7 +75,7 @@ class Recipe(models.Model):
     )
     image = models.ImageField(
         'Картинка рецепта',
-        upload_to='recipes/',
+        upload_to='recipes/images/',
     )
     text = models.TextField(
         'Текстовое описание',
@@ -82,7 +83,6 @@ class Recipe(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
         through='IngredientsRecipe',
-        related_name='recipes',
         verbose_name='Ингредиенты',
     )
     cooking_time = CustomTimeValidate(

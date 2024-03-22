@@ -1,30 +1,43 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.core.validators import RegexValidator
 
+MAX_LENGTH = 150
+EMAIL_LENGTH = 254
 
 class CustomUser(AbstractUser):
     '''Модель Пользователя'''
-    email = models.EmailField(
-        'Электронная почта',
-        max_length=254,
-        unique=True
-        )
     username = models.CharField(
         'НИК пользователя',
-        max_length=200,
-        unique=True
-        )
+        max_length=MAX_LENGTH,
+        unique=True,
+        blank=False,
+        validators=[
+            RegexValidator(
+            regex=r'^[\w.@+-]+$',
+            message='Некорректное имя',
+            )
+        ],
+    )
     first_name = models.CharField(
         'Имя',
-        max_length=200
+        max_length=MAX_LENGTH,
+        blank=False,
     )
     last_name = models.CharField(
         'Фамилия',
-        max_length=200
+        max_length=MAX_LENGTH,
+        blank=False,
     )
+    email = models.EmailField(
+        'Электронная почта',
+        max_length=EMAIL_LENGTH,
+        unique=True,
+        )
     password = models.CharField(
         'Пароль',
-        max_length=200
+        max_length=MAX_LENGTH,
+        blank=False,
     )
 
     class Meta:
@@ -34,6 +47,15 @@ class CustomUser(AbstractUser):
 
     def str(self):
         return self.username
+    
+    def save(self, *args, **kwargs):
+        '''Устанавливаем права пользователя перед сохранением.'''
+        if self.is_superuser:
+            self.is_staff = True
+        else:
+            self.is_staff = False
+            self.is_superuser = False
+        super().save(*args, **kwargs)
 
 
 class Subscrime(models.Model):
@@ -42,13 +64,13 @@ class Subscrime(models.Model):
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='subscribe',
+        related_name='follower',
         verbose_name='Подписчик'
     )
     author = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='subscribers',
+        related_name='follow',
         verbose_name='Автор'
     )
 
@@ -58,7 +80,7 @@ class Subscrime(models.Model):
 
         constraints = [
             models.UniqueConstraint(fields=['user', 'author'],
-                                    name='unique_subscriber'),
+                                    name='unique_subscribers'),
         ]
 
     def __str__(self) -> str:
