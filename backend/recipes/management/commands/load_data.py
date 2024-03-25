@@ -4,6 +4,7 @@ from recipes.models import Ingredient
 
 class Command(BaseCommand):
     help = 'Импорт ингредиентов из CSV файла'
+    file_path = 'C:/Dev/foodgram-project-react/data/ingredients.csv'
 
     def add_arguments(self, parser):
         parser.add_argument(
