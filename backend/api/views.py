@@ -19,7 +19,8 @@ from rest_framework.permissions import (
 )
 
 from rest_framework.response import Response
-from users.models import CustomUser, Subscrime
+from users.models import Subscrime
+from django.contrib.auth import get_user_model
 
 from api.filters import IngredientNameFilter, RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
@@ -35,9 +36,10 @@ from .serializers import (
     SubscrimeSerializer,
     TagSerializer
 )
+User = get_user_model()
 
 class CustomUserViewSet(UserViewSet):
-    queryset = CustomUser.objects.all()
+    queryset = User.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
@@ -45,11 +47,11 @@ class CustomUserViewSet(UserViewSet):
             detail=False,
             url_path='subscriptions',
             url_name='subscriptions',
-            permission_classes=[IsAuthenticated]
+            permission_classes=[IsAuthenticated,],
     )
     def subscriptions(self, request):
-        queryset = CustomUser.objects.filter(
-            follow__user=request.user
+        queryset = User.objects.filter(
+            follower__user=request.user
         )
         if queryset.exists():
             serializer = SubscrimeSerializer(
@@ -64,27 +66,26 @@ class CustomUserViewSet(UserViewSet):
         )
 
     @action(
-            detail=True,
-            methods=['POST'],
-            permission_classes=[IsAuthenticated]
+        detail=True,
+        methods=['POST'],
+        url_path='subscribe',
+        url_name='subscribe',
+        permission_classes=[IsAuthenticated]
     )
     def subscribe(self, request, id):
         user = request.user
-        author = get_object_or_404(
-            CustomUser,
-            id=id
-        )
+        author = get_object_or_404(User, id=id)
         if user == author:
             return Response(
                 'На себя подписываться нельзя!',
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        subscription__created = Subscrime.objects.get_or_create(
+        subscription, created = Subscrime.objects.get_or_create(
             user=user,
             author=author
         )
-        if not subscription__created:
+        if not created:
             return Response(
                 f'Вы уже подписаны на {author}',
                 status=status.HTTP_400_BAD_REQUEST
@@ -97,11 +98,11 @@ class CustomUserViewSet(UserViewSet):
     @subscribe.mapping.delete
     def unsubscribe(self, request, id):
         user = request.user
-        author = get_object_or_404(CustomUser, id=id)
+        author = get_object_or_404(User, id=id)
 
         change_subscription = Subscrime.objects.filter(
-            user=user.id,
-            author=author.id
+            user=user,
+            author=author
         )
         if change_subscription.exists():
             change_subscription.delete()
@@ -134,6 +135,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
 
+    def get_queryset(self):
+        return Recipe.objects.prefetch_related(
+            'recipe_ingredients__ingredient',
+            'tags',
+            'author'
+        ).all()
+
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
             return RecipeSerializer
@@ -145,7 +153,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if not recipe:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         
-        instance, created = model.objects.get_or_create(user=user, recipe=recipe)
+        instance, created = model.objects.get_or_create(
+            user=user,
+            recipe=recipe
+        )
         if request.method == 'POST':
             serializer = serializer(instance, context={'request': request})
             return {
@@ -167,6 +178,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['POST', 'DELETE'],
+        url_path='shopping_cart',
+        url_name='shopping_cart',
         permission_classes=(IsAuthenticated,),
     )
     def shopping_cart(self, request, **kwargs):

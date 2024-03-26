@@ -1,8 +1,10 @@
 from django.core.validators import MinValueValidator
 from django.db import models
 from recipes.validators import validate_color, CustomTimeValidate
-from users.models import CustomUser
+from django.contrib.auth import get_user_model
 
+
+User = get_user_model()
 
 class Tag(models.Model):
     '''Модель тега'''
@@ -64,7 +66,7 @@ class Recipe(models.Model):
         verbose_name='Теги рецепта',
     )
     author = models.ForeignKey(
-        CustomUser,
+        User,
         on_delete=models.CASCADE,
         related_name='recipes',
         verbose_name='Автор публикации (пользователь)',
@@ -152,7 +154,7 @@ class RecipeTag(models.Model):
 class Favorite(models.Model):
     '''Модель для Избранное'''
     user = models.ForeignKey(
-        CustomUser,
+        User,
         on_delete=models.CASCADE,
         related_name='favorite',
         verbose_name='Пользователь'
@@ -181,7 +183,7 @@ class Favorite(models.Model):
 class ShoppingCart(models.Model):
     '''Модель для списка покупок'''
     user = models.ForeignKey(
-        CustomUser,
+        User,
         on_delete=models.CASCADE,
         related_name='shopping_cart'
     )

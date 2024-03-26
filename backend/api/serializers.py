@@ -8,7 +8,7 @@ from rest_framework import (
 )
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.exceptions import AuthenticationFailed
-from users.models import CustomUser, Subscrime
+from users.models import Subscrime
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from recipes.models import (
@@ -21,8 +21,11 @@ from recipes.models import (
     Recipe,
 )
 from djoser.serializers import UserCreateSerializer, UserSerializer
+from django.contrib.auth import get_user_model
 
 
+
+User = get_user_model()
 
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
@@ -37,7 +40,7 @@ class CustomUserSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'id',
             'username',
@@ -57,17 +60,14 @@ class CustomUserSerializer(UserSerializer):
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_staff:
-            return Subscrime.objects.filter(
-                user=request.user,
-                author=obj.id
-            ).exists()
+            return Subscrime.objects.filter(user=request.user, author=obj).exists()
         return False
 
 
 class CustomUserCreateSerializer(UserCreateSerializer):
     '''Сериализатор регистрации и создания пользователя'''
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'id',
             'username',
@@ -78,32 +78,42 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         )
 
 class SubscrimeSerializer(CustomUserSerializer):
-    recipes = serializers.SerializerMethodField(read_only=True)
-    recipes_count = serializers.ReadOnlyField(source='author.recipes.count')
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'id',
             'username',
+            'email',
             'first_name',
             'last_name',
-            'email',
             'is_subscribed',
             'recipes',
             'recipes_count',
         )
 
     def get_recipes(self, obj):
-        request = self.context.get('request')
+        recipes_limit = self.context.get(
+            'request'
+            ).query_params.get('recipes_limit')
         recipes = obj.recipes.all()
-        recipes_limit = request.query_params.get('recipes_limit')
         if recipes_limit:
             recipes = recipes[:int(recipes_limit)]
         return RecipeCutSerializer(recipes, many=True).data
-    
-    def get_recipes_count(obj):
+
+    def get_is_subscribed(self, obj):
+        user = self.context.get('request').user
+        return Subscrime.objects.filter(
+            user=user,
+            author=obj
+            ).exists()
+
+    def get_recipes_count(self, obj):
         return obj.recipes.count()
+    
+
        
 class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
@@ -116,7 +126,7 @@ class IngredientSerializer(serializers.ModelSerializer):
     '''Сериализатор ингредиентов'''
     class Meta:
         model = Ingredient
-        fields = '__all__'
+        fields = ('id', 'name', 'measurement_unit',)
 
 
 class IngredientsRecipeSerializer(serializers.ModelSerializer):
