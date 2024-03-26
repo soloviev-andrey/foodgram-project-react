@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from recipes.models import (
@@ -27,12 +28,9 @@ from api.permissions import IsAuthorOrReadOnly
 
 from .serializers import (
     CustomUserSerializer,
-    FavoriteSerializer,
     IngredientSerializer,
     RecipeCreateUpdateSerializer,
-    RecipeCutSerializer,
     RecipeSerializer,
-    ShoppingCartSerializer,
     SubscrimeSerializer,
     TagSerializer
 )
@@ -44,10 +42,10 @@ class CustomUserViewSet(UserViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     @action(
-            detail=False,
-            url_path='subscriptions',
-            url_name='subscriptions',
-            permission_classes=[IsAuthenticated,],
+        detail=False,
+        url_path='subscriptions',
+        url_name='subscriptions',
+        permission_classes=[IsAuthenticated,],
     )
     def subscriptions(self, request):
         queryset = User.objects.filter(
@@ -61,7 +59,7 @@ class CustomUserViewSet(UserViewSet):
             )
             return self.get_paginated_response(serializer.data)
         return Response(
-            'Вы ни на кого не подписаны.',
+            {'error': 'Вы ни на кого не подписаны.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -77,7 +75,7 @@ class CustomUserViewSet(UserViewSet):
         author = get_object_or_404(User, id=id)
         if user == author:
             return Response(
-                'На себя подписываться нельзя!',
+                {'error': 'На себя подписываться нельзя!'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -87,11 +85,11 @@ class CustomUserViewSet(UserViewSet):
         )
         if not created:
             return Response(
-                f'Вы уже подписаны на {author}',
+                {'error': f'Вы уже подписаны на {author}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         return Response(
-            f'Вы подписались на {author}',
+            {'success': f'Вы подписались на {author}'},
             status=status.HTTP_201_CREATED
         )
 
@@ -107,11 +105,11 @@ class CustomUserViewSet(UserViewSet):
         if change_subscription.exists():
             change_subscription.delete()
             return Response(
-                f'Вы больше не подписаны на {author}',
+                {'success': f'Вы больше не подписаны на {author}'},
                 status=status.HTTP_204_NO_CONTENT
             )
         return Response(
-            f'Вы не были подписаны на {author}',
+            {'error': f'Вы не были подписаны на {author}'},
             status=status.HTTP_400_BAD_REQUEST
         )
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -167,20 +165,59 @@ class RecipeViewSet(viewsets.ModelViewSet):
             instance.delete()
             return {'status': status.HTTP_204_NO_CONTENT}
 
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        permission_classes=(IsAuthenticated,),
-    )
+    @action(detail=True, methods=['post', 'delete'],
+            permission_classes=(IsAuthenticated,))
     def favorite(self, request, **kwargs):
-        return self._create_or_destroy(request, Favorite, FavoriteSerializer)
+        recipe = get_object_or_404(Recipe, id=kwargs['pk'])
+
+        if request.method == 'POST':
+            serializer = RecipeSerializer(recipe, data=request.data,
+                                          context={"request": request})
+            serializer.is_valid(raise_exception=True)
+            if not Favorite.objects.filter(user=request.user,
+                                           recipe=recipe).exists():
+                Favorite.objects.create(user=request.user, recipe=recipe)
+                return Response(serializer.data,
+                                status=status.HTTP_201_CREATED)
+            return Response({'errors': 'Рецепт уже в избранном.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'DELETE':
+            get_object_or_404(Favorite, user=request.user,
+                              recipe=recipe).delete()
+            return Response({'detail': 'Рецепт успешно удален из избранного.'},
+                            status=status.HTTP_204_NO_CONTENT)
 
     @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        url_path='shopping_cart',
-        url_name='shopping_cart',
-        permission_classes=(IsAuthenticated,),
+            detail=True,
+            methods=['post', 'delete'],
+            permission_classes=(IsAuthenticated,),
+            pagination_class=None
     )
     def shopping_cart(self, request, **kwargs):
-        return self._create_or_destroy(request, ShoppingCart, ShoppingCartSerializer)
+        recipe = get_object_or_404(Recipe, id=kwargs['pk'])
+
+        if request.method == 'POST':
+            serializer = RecipeSerializer(recipe, data=request.data,
+                                          context={"request": request})
+            serializer.is_valid(raise_exception=True)
+            if not ShoppingCart.objects.filter(user=request.user,
+                                                recipe=recipe).exists():
+                ShoppingCart.objects.create(user=request.user, recipe=recipe)
+                return Response(serializer.data,
+                                status=status.HTTP_201_CREATED)
+            return Response({'errors': 'Рецепт уже в списке покупок.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'DELETE':
+            try:
+                shopping_cart_item = ShoppingCart.objects.get(user=request.user, recipe=recipe)
+                shopping_cart_item.delete()
+                return Response(
+                    {'detail': 'Рецепт успешно удален из списка покупок.'},
+                    status=status.HTTP_204_NO_CONTENT
+                )
+            except ShoppingCart.DoesNotExist:
+                raise ValidationError('Рецепт не найден в списке покупок.', code='not_found')
+    
+        raise ValidationError('Недопустимый метод запроса.', code='invalid_method')

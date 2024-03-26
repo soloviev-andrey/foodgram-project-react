@@ -1,9 +1,10 @@
 from django_filters import rest_framework as filters
-
+from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
 from recipes.models import Recipe, Tag, Ingredient
 
-FILTER_USER = {'favorites': 'favorites__user',
-               'shop_list': 'shop_list__user'}
+User = get_user_model()
+
 # Фильтр для ингредиентов
 class IngredientNameFilter(filters.FilterSet):
     name = filters.CharFilter(
@@ -30,15 +31,27 @@ class RecipeFilter(filters.FilterSet):
 
     class Meta:
         model = Recipe
-        fields = ('tags', 'author', 'is_favorited', 'is_in_shopping_cart')
-
-    def _get_queryset(self, queryset, name, value, model):
-        if value:
-            return queryset.filter(**{FILTER_USER[model]: self.request.user})
-        return queryset
+        fields = (
+            'tags',
+            'author',
+            'is_favorited',
+            'is_in_shopping_cart'
+        )
 
     def filter_is_favorited(self, queryset, name, value):
-        return self._get_queryset(queryset, name, value, 'favorites')
+        if not isinstance(self.request.user, AnonymousUser):
+            user = self.request.user
+            if value:
+                return queryset.filter(favorites__user=user)
+            else:
+                return queryset.exclude(favorites__user=user)
+        return queryset
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
-        return self._get_queryset(queryset, name, value, 'shop_list')
+        if not isinstance(self.request.user, AnonymousUser):
+            user = self.request.user
+            if value:
+                return queryset.filter(shopping_cart__user=user)
+            else:
+                return queryset.exclude(shopping_cart__user=user)
+        return queryset

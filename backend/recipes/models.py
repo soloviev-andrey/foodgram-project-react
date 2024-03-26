@@ -34,6 +34,7 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.slug[:15]
+    
 
 
 class Ingredient(models.Model):

@@ -1,6 +1,8 @@
 import base64
+from rest_framework.response import Response
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import ValidationError
 from rest_framework import (
     serializers,
     validators,
@@ -23,18 +25,11 @@ from recipes.models import (
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from django.contrib.auth import get_user_model
 
-
+# -----------------------------------------------------------------------------
+#                            Users
+# -----------------------------------------------------------------------------
 
 User = get_user_model()
-
-class Base64ImageField(serializers.ImageField):
-    def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:image'):
-            format, imgstr = data.split(';base64,')
-            ext = format.split('/')[-1]
-            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
-        return super().to_internal_value(data)
-
 class CustomUserSerializer(UserSerializer):
     '''Сериализатор отображения пользователя'''
     is_subscribed = serializers.SerializerMethodField(read_only=True)
@@ -114,7 +109,18 @@ class SubscrimeSerializer(CustomUserSerializer):
         return obj.recipes.count()
     
 
-       
+# -----------------------------------------------------------------------------
+#                            Recipes
+# -----------------------------------------------------------------------------
+
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
+            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+        return super().to_internal_value(data)
+ 
 class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
     class Meta:
@@ -343,43 +349,3 @@ class RecipeCutSerializer(serializers.ModelSerializer):
             'image',
             'cooking_time',
         )
-
-
-
-class FavoriteSerializer(RecipeCutSerializer):
-    class Meta:
-        model = Favorite
-        fields = (
-            'user',
-            'recipe'
-        )
-
-    def to_representation(self, instance):
-        return self.to_representation(
-            self.context,
-            instance.recipe,
-            RecipeCutSerializer
-        )
-
-class ShoppingCartSerializer(RecipeCutSerializer):
-    class Meta:
-        model = ShoppingCart
-        fields = (
-            'user',
-            'recipe'
-        )
-
-    def to_representation(self, instance):
-        return self.representation(
-            self.context,
-            instance.recipe,
-            RecipeCutSerializer
-        )
-
-    def representation(self, context, instance, serializer):
-        request = context.get('request')
-        new_context = {'request': request}
-        return serializer(
-            instance,
-            context=new_context
-        ).data
