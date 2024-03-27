@@ -70,8 +70,8 @@ class Subscrime(models.Model):
     author = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='follow',
-        verbose_name='Автор'
+        related_name='author',
+        verbose_name='Автор',
     )
 
     class Meta:
@@ -80,7 +80,7 @@ class Subscrime(models.Model):
 
         constraints = [
             models.UniqueConstraint(fields=['user', 'author'],
-                                    name='unique_subscribers'),
+                                    name='unique_subscriber'),
         ]
 
     def __str__(self) -> str:

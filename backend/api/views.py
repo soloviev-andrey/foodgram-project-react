@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Sum
+from django.http import HttpResponse
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -35,83 +37,57 @@ from .serializers import (
     TagSerializer
 )
 User = get_user_model()
-
 class CustomUserViewSet(UserViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-    @action(
-        detail=False,
-        url_path='subscriptions',
-        url_name='subscriptions',
-        permission_classes=[IsAuthenticated,],
-    )
-    def subscriptions(self, request):
-        queryset = User.objects.filter(
-            follower__user=request.user
-        )
-        if queryset.exists():
-            serializer = SubscrimeSerializer(
-                self.paginate_queryset(queryset),
-                context={'request': request},
-                many=True
-            )
-            return self.get_paginated_response(serializer.data)
-        return Response(
-            {'error': 'Вы ни на кого не подписаны.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    permission_classes = (IsAuthenticatedOrReadOnly,)
 
     @action(
         detail=True,
-        methods=['POST'],
+        methods=['POST', 'DELETE'],
         url_path='subscribe',
         url_name='subscribe',
-        permission_classes=[IsAuthenticated]
+        permission_classes=(IsAuthenticated,),
     )
-    def subscribe(self, request, id):
-        user = request.user
-        author = get_object_or_404(User, id=id)
-        if user == author:
-            return Response(
-                {'error': 'На себя подписываться нельзя!'},
-                status=status.HTTP_400_BAD_REQUEST
+    def subscribe(self, request, **kwargs):
+        author = get_object_or_404(User, id=self.kwargs.get('id'))
+        
+        if author == request.user:
+            raise ValidationError(
+                detail='Нельзя подписаться на самого себя.',
+                code=400
             )
-
         subscription, created = Subscrime.objects.get_or_create(
-            user=user,
-            author=author
+            user=request.user, author=author
         )
-        if not created:
-            return Response(
-                {'error': f'Вы уже подписаны на {author}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response(
-            {'success': f'Вы подписались на {author}'},
-            status=status.HTTP_201_CREATED
-        )
+        
+        if request.method == 'POST':
+            if not created:
+                raise ValidationError(
+                    detail='Вы уже подписаны на данного автора.',
+                    code=400
+                )
+            serializer = SubscrimeSerializer(author, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @subscribe.mapping.delete
-    def unsubscribe(self, request, id):
-        user = request.user
-        author = get_object_or_404(User, id=id)
-
-        change_subscription = Subscrime.objects.filter(
-            user=user,
-            author=author
+    @action(
+        detail=False,
+        methods=['GET'],
+        url_path='subscriptions',
+        url_name='subscriptions',
+        permission_classes=(IsAuthenticated,),
+    )
+    def subscriptions(self, request):
+        queryset = User.objects.filter(author__user=self.request.user)
+        serializer = SubscrimeSerializer(
+            self.paginate_queryset(queryset),
+            context={'request': request},
+            many=True
         )
-        if change_subscription.exists():
-            change_subscription.delete()
-            return Response(
-                {'success': f'Вы больше не подписаны на {author}'},
-                status=status.HTTP_204_NO_CONTENT
-            )
-        return Response(
-            {'error': f'Вы не были подписаны на {author}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return self.get_paginated_response(serializer.data)
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
@@ -165,29 +141,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             instance.delete()
             return {'status': status.HTTP_204_NO_CONTENT}
 
-    @action(detail=True, methods=['post', 'delete'],
-            permission_classes=(IsAuthenticated,))
-    def favorite(self, request, **kwargs):
-        recipe = get_object_or_404(Recipe, id=kwargs['pk'])
-
-        if request.method == 'POST':
-            serializer = RecipeSerializer(recipe, data=request.data,
-                                          context={"request": request})
-            serializer.is_valid(raise_exception=True)
-            if not Favorite.objects.filter(user=request.user,
-                                           recipe=recipe).exists():
-                Favorite.objects.create(user=request.user, recipe=recipe)
-                return Response(serializer.data,
-                                status=status.HTTP_201_CREATED)
-            return Response({'errors': 'Рецепт уже в избранном.'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        if request.method == 'DELETE':
-            get_object_or_404(Favorite, user=request.user,
-                              recipe=recipe).delete()
-            return Response({'detail': 'Рецепт успешно удален из избранного.'},
-                            status=status.HTTP_204_NO_CONTENT)
-
     @action(
             detail=True,
             methods=['post', 'delete'],
@@ -221,3 +174,40 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 raise ValidationError('Рецепт не найден в списке покупок.', code='not_found')
     
         raise ValidationError('Недопустимый метод запроса.', code='invalid_method')
+    
+    @action(
+        detail=False,
+        methods=("get",),
+        permission_classes=(IsAuthenticated,),
+        url_path="download_shopping_cart",
+        url_name="download_shopping_cart",
+    )
+    def download_shopping_cart(self, request):
+        shopping_cart = ShoppingCart.objects.filter(user=self.request.user)
+        recipes = Recipe.objects.filter(recipe_ingredients__recipe__in=shopping_cart)
+        buy = (
+            IngredientsRecipe.objects.filter(recipe__in=recipes)
+            .values("ingredient")
+            .annotate(amount=Sum("amount"))
+        )
+
+        purchased = [
+            "Список покупок:",
+        ]
+        for item in buy:
+            ingredient_id = item["ingredient"]
+            try:
+                ingredient = Ingredient.objects.get(pk=ingredient_id)
+                amount = item["amount"]
+                purchased.append(
+                    f"{ingredient.name}: {amount}, {ingredient.unit_of_measurement}"
+                )
+            except Ingredient.DoesNotExist:
+                purchased.append(f"Ингредиент с ID {ingredient_id} не найден")
+
+        purchased_in_file = "\n".join(purchased)
+
+        response = HttpResponse(purchased_in_file, content_type="text/plain")
+        response["Content-Disposition"] = "attachment; filename=shopping-list.txt"
+
+        return response

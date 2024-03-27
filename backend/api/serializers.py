@@ -125,14 +125,23 @@ class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
     class Meta:
         model = Tag
-        fields = '__all__'
+        fields = (
+            'id',
+            'name',
+            'color',
+            'slug',
+        )
 
 
 class IngredientSerializer(serializers.ModelSerializer):
     '''Сериализатор ингредиентов'''
     class Meta:
         model = Ingredient
-        fields = ('id', 'name', 'measurement_unit',)
+        fields = (
+            'id',
+            'name',
+            'measurement_unit',
+        )
 
 
 class IngredientsRecipeSerializer(serializers.ModelSerializer):
@@ -182,7 +191,8 @@ class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = IngredientsRecipeSerializer(
         many=True,
-        source='recipe_ingredients'
+        source='recipe_ingredients',
+        read_only = True,
     )
     image = Base64ImageField(required=False, allow_null=True)
     tags = TagSerializer(many=True)
@@ -222,8 +232,12 @@ class RecipeSerializer(serializers.ModelSerializer):
         return self.check_recipe(Favorite, obj)
 
     def get_is_in_shopping_cart(self, obj):
-        return self.check_recipe(ShoppingCart, obj)
-
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            is_in_shopping_cart = request.query_params.get('is_in_shopping_cart')
+            if is_in_shopping_cart == 'true':
+                return self.check_recipe(ShoppingCart, obj)
+        return False
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
