@@ -191,8 +191,7 @@ class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = IngredientsRecipeSerializer(
         many=True,
-        source='recipe_ingredients',
-        read_only = True,
+        source='ingredients_recipe',
     )
     image = Base64ImageField(required=False, allow_null=True)
     tags = TagSerializer(many=True)
@@ -219,25 +218,17 @@ class RecipeSerializer(serializers.ModelSerializer):
             'is_in_shopping_cart',
         )
 
-    def check_recipe(self, model, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return model.objects.filter(
-                user=request.user,
-                recipe=obj
-            ).exists()
+    def get_is_recipe_relation(self, obj, model):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return model.objects.filter(user=user, recipe=obj).exists()
         return False
 
     def get_is_favorited(self, obj):
-        return self.check_recipe(Favorite, obj)
+        return self.get_is_recipe_relation(obj, Favorite)
 
     def get_is_in_shopping_cart(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            is_in_shopping_cart = request.query_params.get('is_in_shopping_cart')
-            if is_in_shopping_cart == 'true':
-                return self.check_recipe(ShoppingCart, obj)
-        return False
+        return self.get_is_recipe_relation(obj, ShoppingCart)
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
@@ -248,7 +239,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
     ingredients = CreateIngredientsRecipeSerializer(many=True, required=True)
     image = Base64ImageField(max_length=None, use_url=True)
-    cooking_time = serializers.IntegerField(write_only=True)
+    cooking_time = serializers.IntegerField()
 
     class Meta:
         fields = (
