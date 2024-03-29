@@ -52,35 +52,32 @@ class CustomUserViewSet(UserViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def subscribe(self, request, **kwargs):
-        author_id = kwargs.get('id')
-        author = get_object_or_404(User, id=author_id)
-        
+        author = get_object_or_404(User, id=self.kwargs.get('id'))
         if author == request.user:
-            return Response(
-                {'error': 'На себя подписываться нельзя!'},
-                status=status.HTTP_400_BAD_REQUEST
+            raise ValidationError(
+                detail='Нельзя подписаться на самого себя.',
+                code=400
             )
         subscription, created = Subscrime.objects.get_or_create(
             user=request.user, author=author
         )
-        
         if request.method == 'POST':
             if not created:
-                return Response(
-                    {'error': f'Вы уже подписаны на {author}'},
-                    status=status.HTTP_400_BAD_REQUEST
+                raise ValidationError(
+                    detail='Вы уже подписаны на данного автора.',
+                    code=400
                 )
-            serializer = SubscrimeSerializer(
-                author,
-                context={'request': request}
-            )
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-        
+            serializer = SubscrimeSerializer(author, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)   
         subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+        
+
+
+
+        
+
 
     @action(
         detail=False,
@@ -91,12 +88,17 @@ class CustomUserViewSet(UserViewSet):
     )
     def subscriptions(self, request):
         queryset = User.objects.filter(author__user=self.request.user)
-        serializer = SubscrimeSerializer(
-            self.paginate_queryset(queryset),
-            context={'request': request},
-            many=True
+        if queryset:
+            serializer = SubscrimeSerializer(
+                self.paginate_queryset(queryset),
+                context={'request': request},
+                many=True
+            )
+            return self.get_paginated_response(serializer.data)
+        return Response(
+            {'Вы не подписались ни на кого'},
+             status=status.HTTP_400_BAD_REQUEST
         )
-        return self.get_paginated_response(serializer.data)
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
@@ -131,40 +133,43 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return RecipeSerializer
         return RecipeCreateUpdateSerializer
 
-    def create_or_destroy(self, request, model, id):
-        recipe = get_object_or_404(Recipe, id=id)
-        if not recipe:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        
-        instance, created = model.objects.select_related(
-            'user', 'recipe'
-        ).get_or_create(user=request.user, recipe=recipe)
-        if request.method == 'POST' and created:
-            serializer = RecipeCutSerializer(
-                recipe,
-                context={'request': request}
+    def create_or_destroy(self, request, model, serializer):
+        recipe_id = self.kwargs.get('pk')
+        try:
+            recipe = Recipe.objects.get(pk=recipe_id)
+        except Recipe.DoesNotExist:
+            return Response(
+                {'Рецепт не найден'},
+                status.HTTP_400_BAD_REQUEST
             )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        if request.method == 'DELETE' and instance:
-            instance.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        raise ValidationError(
-            detail='Вы уже совершили это действие!'
-        )
+        instance, created = model.objects.select_related(
+            'user',
+            'recipe',
+            ).get_or_create(user=request.user, recipe=recipe)
+        if request.method == 'POST':
+            if created:
+                serializer = RecipeCutSerializer(
+                    recipe,
+                    context={'request': request}
+                )
+                return Response(
+                    serializer.data,
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(
+                {'Вы уже совершили это действие!'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+        if request.method == 'DELETE':
+            if instance:
+                instance.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(
+                {'Нечего удалять'},
+                status=status.HTTP_400_BAD_REQUEST
+            ) 
 
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        url_path='favorite',
-        url_name='favorite',
-        permission_classes=(IsAuthenticated,),
-    )
-    def favorite(self, request, **kwargs):
-        return self.create_or_destroy(
-            request,
-            self.kwargs.get('pk'),
-            Favorite
-        )
 
     @action(
         detail=True,
@@ -174,48 +179,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def shopping_cart(self, request, **kwargs):
-        recipe_id = self.kwargs.get('pk')
-        try:
-            recipe = Recipe.objects.get(pk=recipe_id)
-        except Recipe.DoesNotExist:
-            return Response(
-                {'Рецепт не существует'},
-                status.HTTP_400_BAD_REQUEST
-            )
+        return self.create_or_destroy(
+            request,
+            ShoppingCart,
+            self.kwargs.get('pk')
+        )
 
-        try:
-            shopping_cart_item, created = ShoppingCart.objects.get_or_create(
-                user=request.user,
-                recipe=recipe
-            )
-        
-            if request.method == 'POST':
-                if not created:
-                    return Response(
-                        {'Рецепт уже в корзине покупок'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                serializer = RecipeCutSerializer(
-                    recipe,
-                    context={'request': request}
-                )
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED
-                )
-        
-            shopping_cart_item.delete()
-            return Response(
-                {'Рецепт удален из корзины покупок'},
-                status=status.HTTP_204_NO_CONTENT
-            )
-        except IntegrityError:
-            return Response(
-                {'Рецепт уже в корзине покупок'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    
     @action(
         detail=False,
         methods=['GET'],
@@ -241,3 +210,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return response
 
+
+    @action(
+        detail=True,
+        methods=['POST', 'DELETE'],
+        url_path='favorite',
+        url_name='favorite',
+        permission_classes=(IsAuthenticated,),
+    )
+    def Favorite(self, request, **kwargs):
+        return self.create_or_destroy(
+            request,
+            Favorite,
+            self.kwargs.get('pk')
+        )
