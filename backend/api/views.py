@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from django.db import IntegrityError
 from django.db.models import Sum
 from django.http import HttpResponse
@@ -147,7 +148,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if self.request.method in SAFE_METHODS:
             return RecipeSerializer
         return RecipeCreateUpdateSerializer
-
+    
     def create_or_destroy(self, request, model, serializer):
         recipe_id = self.kwargs.get('pk')
         try:
@@ -209,7 +210,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request):
         ingredients = (IngredientsRecipe.objects.filter(
-            recipe__shopping_carts__user=request.user).values(
+            recipe__shopping_cart__user=request.user).values(
             'ingredient__name',
             'ingredient__measurement_unit',
         ).annotate(amount=Sum('amount')))
@@ -220,8 +221,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 amount=ingredient.get('amount'),
                 m_unit=ingredient.get('ingredient__measurement_unit')
             ))
-        response = HttpResponse(purchased_in_file, content_type="text/plain")
-        response["Content-Disposition"] = "attachment; filename=shopping-list.txt"
+        response = HttpResponse(purchased_in_file, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename=shopping-list.txt'
 
         return response
 
@@ -239,3 +240,4 @@ class RecipeViewSet(viewsets.ModelViewSet):
             Favorite,
             self.kwargs.get('pk')
         )
+        

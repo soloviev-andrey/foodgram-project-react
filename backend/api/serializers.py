@@ -217,7 +217,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'is_favorited',
             'is_in_shopping_cart',
         )
-
+    
     def get_is_recipe_relation(self, obj, model):
         user = self.context['request'].user
         if user.is_authenticated:
@@ -237,11 +237,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         required=True
     )
     author = CustomUserSerializer(read_only=True)
-    ingredients = CreateIngredientsRecipeSerializer(many=True, required=True)
+    ingredients = CreateIngredientsRecipeSerializer(many=True)
     image = Base64ImageField(max_length=None, use_url=True)
     cooking_time = serializers.IntegerField()
 
     class Meta:
+        model = Recipe
         fields = (
             'id',
             'tags',
@@ -252,14 +253,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             'text',
             'cooking_time',
         )
-        model = Recipe
-        validators = [
-            validators.UniqueTogetherValidator(
-                queryset=Recipe.objects.all(),
-                fields=['name', 'text'],
-                message='Такой рецепт уже существует!'
-            )
-        ]
 
     def validate_cooking_time(self, value):
         if value < 1 or value > 5000:
