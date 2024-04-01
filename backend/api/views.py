@@ -136,18 +136,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
-
-    def get_queryset(self):
-        return Recipe.objects.prefetch_related(
-            'ingredients_recipe__ingredient',
-            'tags',
-            'author',
-        ).all()
-
+    
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
             return RecipeSerializer
         return RecipeCreateUpdateSerializer
+    
     
     def create_or_destroy(self, request, model, serializer):
         recipe_id = self.kwargs.get('pk')

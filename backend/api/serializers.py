@@ -254,6 +254,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
+
     def validate_cooking_time(self, value):
         if value < 1 or value > 5000:
             raise serializers.ValidationError(
