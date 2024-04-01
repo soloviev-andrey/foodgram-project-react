@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 from django.db.models import Sum
 from django.http import HttpResponse
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -54,28 +55,42 @@ class CustomUserViewSet(UserViewSet):
     def subscribe(self, request, **kwargs):
         author = get_object_or_404(User, id=self.kwargs.get('id'))
         if author == request.user:
-            raise ValidationError(
-                detail='Нельзя подписаться на самого себя.',
-                code=400
+            return Response(
+                'Вы не можете подписаться на самого себя',
+                status=status.HTTP_400_BAD_REQUEST
             )
-        subscription, created = Subscrime.objects.get_or_create(
-            user=request.user, author=author
-        )
         if request.method == 'POST':
+            subscription, created = Subscrime.objects.get_or_create(
+                user=request.user, author=author
+            )
             if not created:
-                raise ValidationError(
-                    detail='Вы уже подписаны на данного автора.',
-                    code=400
+                return Response(
+                    'Вы уже подписаны на этого автора',
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-            serializer = SubscrimeSerializer(author, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_201_CREATED)   
-        subscription.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
+            serializer = SubscrimeSerializer(
+                author,
+                context={'request': request}
+            )
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+        if request.method == 'DELETE':
+            try:
+                subscription = Subscrime.objects.get(
+                    user=request.user,
+                    author=author
+                )
+                subscription.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            except Subscrime.DoesNotExist:
+                return Response(
+                    'Подписка не существует',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
         
-
-
-
         
 
 
@@ -139,7 +154,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe = Recipe.objects.get(pk=recipe_id)
         except Recipe.DoesNotExist:
             return Response(
-                {'Рецепт не найден'},
+                'Рецепт не найден',
                 status.HTTP_400_BAD_REQUEST
             )
         instance, created = model.objects.select_related(
@@ -157,18 +172,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_201_CREATED
                 )
             return Response(
-                {'Вы уже совершили это действие!'},
+                'Вы уже совершили это действие!',
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+        
         if request.method == 'DELETE':
             if instance:
                 instance.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
             return Response(
-                {'Нечего удалять'},
+                'Нечего удалять',
                 status=status.HTTP_400_BAD_REQUEST
-            ) 
+            )
 
 
     @action(
