@@ -90,8 +90,6 @@ class CustomUserViewSet(UserViewSet):
                     'Подписка не существует',
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-        
         
 
 
@@ -141,24 +139,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if self.request.method in SAFE_METHODS:
             return RecipeSerializer
         return RecipeCreateUpdateSerializer
-    
-    
-    def create_or_destroy(self, request, model, serializer):
-        recipe_id = self.kwargs.get('pk')
-        try:
-            recipe = Recipe.objects.get(pk=recipe_id)
-        except Recipe.DoesNotExist:
-            return Response(
-                'Рецепт не найден',
-                status.HTTP_400_BAD_REQUEST
-            )
-        instance, created = model.objects.select_related(
-            'user',
-            'recipe',
-            ).get_or_create(user=request.user, recipe=recipe)
 
+    def create_or_destroy(self, request, model, serializer):
 
         if request.method == 'POST':
+            try:
+                recipe_id = self.kwargs.get('pk')
+                recipe = Recipe.objects.get(pk=recipe_id)
+            except Recipe.DoesNotExist:
+                return Response(
+                    'Рецепт не найден',
+                    status.HTTP_400_BAD_REQUEST
+                )
+            instance, created = model.objects.select_related(
+                'user',
+                'recipe',
+                ).get_or_create(user=request.user, recipe=recipe)
+
             if created:
                 serializer = RecipeCutSerializer(
                     recipe,
@@ -174,14 +171,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
 
         if request.method == 'DELETE':
-            recipe_id = self.kwargs.get('pk')
             try:
+                recipe_id = self.kwargs.get('pk')
                 recipe = Recipe.objects.get(pk=recipe_id)
             except Recipe.DoesNotExist:
                 return Response(
                     'Рецепт не найден',
                     status=status.HTTP_404_NOT_FOUND
                 )
+            instance, created = model.objects.select_related(
+                'user',
+                'recipe',
+                ).get_or_create(user=request.user, recipe=recipe)
             if not created:
                 instance.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)

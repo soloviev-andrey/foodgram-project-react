@@ -125,24 +125,14 @@ class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
     class Meta:
         model = Tag
-        fields = (
-            'id',
-            'name',
-            'color',
-            'slug',
-        )
+        fields = '__all__'
 
 
 class IngredientSerializer(serializers.ModelSerializer):
     '''Сериализатор ингредиентов'''
     class Meta:
         model = Ingredient
-        fields = (
-            'id',
-            'name',
-            'measurement_unit',
-        )
-
+        fields = '__all__'
 
 class IngredientsRecipeSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='ingredient.id')
