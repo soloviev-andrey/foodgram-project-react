@@ -156,6 +156,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             'user',
             'recipe',
             ).get_or_create(user=request.user, recipe=recipe)
+
+
         if request.method == 'POST':
             if created:
                 serializer = RecipeCutSerializer(
@@ -170,15 +172,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'Вы уже совершили это действие!',
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if request.method == 'DELETE':
-            if instance:
+            recipe_id = self.kwargs.get('pk')
+            try:
+                recipe = Recipe.objects.get(pk=recipe_id)
+            except Recipe.DoesNotExist:
+                return Response(
+                    'Рецепт не найден',
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            if not created:
                 instance.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
             return Response(
                 'Нечего удалять',
                 status=status.HTTP_400_BAD_REQUEST
             )
+
 
 
     @action(
