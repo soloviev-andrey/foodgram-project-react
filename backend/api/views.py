@@ -1,45 +1,30 @@
-from django.shortcuts import get_object_or_404
-from django.http import Http404
-from django.db import IntegrityError
+from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from django.http import HttpResponse
-from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.exceptions import ValidationError
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import (
-    Favorite,
-    Ingredient,
-    IngredientsRecipe,
-    Recipe,
-    ShoppingCart,
-    Tag,
-)
-
+from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
+                            ShoppingCart, Tag)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import (
-    SAFE_METHODS,
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly
-)
-
+from rest_framework.permissions import (SAFE_METHODS, IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
 from users.models import Subscrime
-from django.contrib.auth import get_user_model
 
 from api.filters import IngredientNameFilter, RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 
-from .serializers import (
-    CustomUserSerializer,
-    IngredientSerializer,
-    RecipeCreateUpdateSerializer,
-    RecipeCutSerializer,
-    RecipeSerializer,
-    SubscrimeSerializer,
-    TagSerializer
-)
+from .serializers import (CustomUserSerializer, IngredientSerializer,
+                          RecipeCreateUpdateSerializer, RecipeCutSerializer,
+                          RecipeSerializer, SubscrimeSerializer, TagSerializer)
+
+
+# -----------------------------------------------------------------------------
+#                            Users
+# -----------------------------------------------------------------------------
+
 User = get_user_model()
 class CustomUserViewSet(UserViewSet):
     queryset = User.objects.all()
@@ -113,6 +98,10 @@ class CustomUserViewSet(UserViewSet):
             {'Вы не подписались ни на кого'},
              status=status.HTTP_400_BAD_REQUEST
         )
+
+# -----------------------------------------------------------------------------
+#                            Recipes
+# -----------------------------------------------------------------------------
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()

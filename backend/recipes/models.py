@@ -1,8 +1,8 @@
+from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
-from recipes.validators import validate_color, CustomTimeValidate
-from django.contrib.auth import get_user_model
 
+from recipes.validators import CustomTimeValidate, validate_color
 
 User = get_user_model()
 

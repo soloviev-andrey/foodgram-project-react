@@ -1,18 +1,14 @@
 import base64
-from rest_framework.response import Response
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import ValidationError
 from rest_framework import (
     serializers,
-    validators,
     status,
 )
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.exceptions import AuthenticationFailed
 from users.models import Subscrime
 from django.core.files.base import ContentFile
-from django.core.validators import MinValueValidator
 from recipes.models import (
     Favorite,
     IngredientsRecipe,
@@ -73,6 +69,7 @@ class CustomUserCreateSerializer(UserCreateSerializer):
         )
 
 class SubscrimeSerializer(CustomUserSerializer):
+    '''Сериализатор для подписки пользователя'''
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
@@ -135,6 +132,7 @@ class IngredientSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class IngredientsRecipeSerializer(serializers.ModelSerializer):
+    '''Сериализатор для связной модели IngredientsRecipe'''
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
     measurement_unit = serializers.ReadOnlyField(
@@ -153,6 +151,7 @@ class IngredientsRecipeSerializer(serializers.ModelSerializer):
 
 
 class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
+    '''Сериализатор добавления ингредиентов в рецепт'''
     id = serializers.IntegerField(write_only=True)
     amount = serializers.IntegerField(write_only=True)
 
@@ -179,6 +178,7 @@ class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
         return value
 
 class RecipeSerializer(serializers.ModelSerializer):
+    '''Сериализатор рецепта'''
     ingredients = IngredientsRecipeSerializer(
         many=True,
         source='ingredients_recipe',
@@ -221,6 +221,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         return self.get_is_recipe_relation(obj, ShoppingCart)
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
+    '''Сериализатор добавления и обновления рецепта'''
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
         many=True,
@@ -327,6 +328,10 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         self.create_tags_recipe(tags, instance)
         super().update(instance, validated_data)
         return instance
+    
+    def to_representation(self, instance):
+        serializer = RecipeSerializer(instance, context=self.context)
+        return serializer.data
 
 
 class RecipeCutSerializer(serializers.ModelSerializer):
