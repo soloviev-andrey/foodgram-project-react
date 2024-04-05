@@ -6,39 +6,33 @@ volumes:
   media:
 
 services:
-  foodgram_db:
+  db:
     image: postgres:13
     env_file: .env
     volumes:
       - pg_data:/var/lib/postgresql/data
 
   backend:
-    build:
-      context: ../backend/
-      dockerfile: Dockerfile
+    image: anxiaolong1103/foodgram_backend:latest
     env_file: .env
     volumes:
       - static:/backend_static
       - media:/app/media
     depends_on:
-      - foodgram_db
+      - db
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+    image: anxiaolong1103/foodgram_frontend:latest
     env_file: .env
     command: cp -r /app/build/. /frontend_static/ 
     volumes:
       - static:/frontend_static 
   
   nginx:
-    image: nginx:1.19.3
+    image: anxiaolong1103/foodgram_gateway:latest
     env_file: .env
     ports:
-      - "80:80"
+      - "8000:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ../docs/:/usr/share/nginx/html/api/docs/
       - static:/staticfiles/
       - media:/media
