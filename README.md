@@ -1,4 +1,4 @@
-# praktikum_new_diplom
+# Дипломный проект - foodgram
 [![CI](https://github.com/soloviev-andrey/foodgram-project-react/actions/workflows/main.yml/badge.svg)](https://github.com/soloviev-andrey/foodgram-project-react/actions/workflows/main.yml)
 
 
