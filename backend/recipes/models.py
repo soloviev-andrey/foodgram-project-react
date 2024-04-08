@@ -6,6 +6,7 @@ from recipes.validators import CustomTimeValidate, validate_color
 
 User = get_user_model()
 
+
 class Tag(models.Model):
     '''Модель тега'''
 
@@ -34,7 +35,6 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.slug[:15]
-    
 
 
 class Ingredient(models.Model):
@@ -53,7 +53,6 @@ class Ingredient(models.Model):
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
         ordering = ('pk',)
-
 
     def __str__(self):
         return f'{self.name} - {self.measurement_unit}'

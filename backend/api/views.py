@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -20,12 +20,13 @@ from .serializers import (CustomUserSerializer, IngredientSerializer,
                           RecipeCreateUpdateSerializer, RecipeCutSerializer,
                           RecipeSerializer, SubscrimeSerializer, TagSerializer)
 
-
 # -----------------------------------------------------------------------------
 #                            Users
 # -----------------------------------------------------------------------------
 
 User = get_user_model()
+
+
 class CustomUserViewSet(UserViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
@@ -75,8 +76,6 @@ class CustomUserViewSet(UserViewSet):
                     'Подписка не существует',
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
-
 
     @action(
         detail=False,
@@ -96,17 +95,19 @@ class CustomUserViewSet(UserViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(
             {'Вы не подписались ни на кого'},
-             status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST
         )
 
 # -----------------------------------------------------------------------------
 #                            Recipes
 # -----------------------------------------------------------------------------
 
+
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     pagination_class = None
+
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
@@ -114,6 +115,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = IngredientNameFilter
     pagination_class = None
+
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
@@ -123,7 +125,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
-    
+
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
             return RecipeSerializer
@@ -143,7 +145,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             instance, created = model.objects.select_related(
                 'user',
                 'recipe',
-                ).get_or_create(user=request.user, recipe=recipe)
+            ).get_or_create(user=request.user, recipe=recipe)
 
             if created:
                 serializer = RecipeCutSerializer(
@@ -171,7 +173,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             instance, created = model.objects.select_related(
                 'user',
                 'recipe',
-                ).get_or_create(user=request.user, recipe=recipe)
+            ).get_or_create(user=request.user, recipe=recipe)
             if not created:
                 instance.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
@@ -179,8 +181,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'Нечего удалять',
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-
 
     @action(
         detail=True,
@@ -217,10 +217,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 m_unit=ingredient.get('ingredient__measurement_unit')
             ))
         response = HttpResponse(purchased_in_file, content_type='text/plain')
-        response['Content-Disposition'] = 'attachment; filename=shopping-list.txt'
+        response['Content-Disposition'] = (
+            'attachment; filename=shopping-list.txt'
+        )
 
         return response
-
 
     @action(
         detail=True,
@@ -235,4 +236,3 @@ class RecipeViewSet(viewsets.ModelViewSet):
             Favorite,
             self.kwargs.get('pk')
         )
-        

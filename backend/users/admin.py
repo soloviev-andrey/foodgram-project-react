@@ -4,6 +4,7 @@ from users.models import CustomUser, Subscrime
 
 admin.site.empty_value_display = 'Не задано'
 
+
 class CustomUserAdmin(admin.ModelAdmin):
     list_display = (
         'email',
@@ -16,6 +17,7 @@ class CustomUserAdmin(admin.ModelAdmin):
         'email',
         'username'
     )
+
 
 admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Subscrime)

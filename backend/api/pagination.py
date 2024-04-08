@@ -16,5 +16,3 @@ class LimitPageNumberPagination(PageNumberPagination):
             except ValueError:
                 pass
         return self.page_size
-
-

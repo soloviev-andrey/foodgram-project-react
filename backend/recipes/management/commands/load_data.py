@@ -1,10 +1,14 @@
 import csv
+
 from django.core.management.base import BaseCommand
+
+
 from recipes.models import Ingredient
+
 
 class Command(BaseCommand):
     help = 'Импорт ингредиентов из CSV файла'
-    file_path = 'C:/Dev/foodgram-project-react/data/ingredients.csv'
+    file_path = '/data/ingredients.csv'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -24,10 +28,18 @@ class Command(BaseCommand):
                         name=name,
                         measurement_unit=measurement_unit
                     )
-                self.stdout.write(self.style.SUCCESS('Импорт данных завершен!'))
+                self.stdout.write(
+                    self.style.SUCCESS('Импорт данных завершен!')
+                )
         except FileNotFoundError:
-            self.stderr.write(self.style.ERROR('Файл не найден. Проверьте путь к файлу.'))
+            self.stderr.write(
+                self.style.ERROR('Файл не найден. Проверьте путь к файлу.')
+            )
         except csv.Error:
-            self.stderr.write(self.style.ERROR('Ошибка при чтении файла CSV. Проверьте формат файла.'))
+            self.stderr.write(
+                self.style.ERROR(
+                    'Ошибка при чтении файла CSV. Проверьте формат файла.'
+                )
+            )
         except Exception as e:
             self.stderr.write(self.style.ERROR(f'Произошла ошибка: {e}'))

@@ -5,6 +5,7 @@ from django.core.validators import RegexValidator
 MAX_LENGTH = 150
 EMAIL_LENGTH = 254
 
+
 class CustomUser(AbstractUser):
     '''Модель Пользователя'''
     username = models.CharField(
@@ -14,8 +15,8 @@ class CustomUser(AbstractUser):
         blank=False,
         validators=[
             RegexValidator(
-            regex=r'^[\w.@+-]+$',
-            message='Некорректное имя',
+                regex=r'^[\w.@+-]+$',
+                message='Некорректное имя',
             )
         ],
     )
@@ -33,7 +34,7 @@ class CustomUser(AbstractUser):
         'Электронная почта',
         max_length=EMAIL_LENGTH,
         unique=True,
-        )
+    )
     password = models.CharField(
         'Пароль',
         max_length=MAX_LENGTH,
@@ -45,9 +46,9 @@ class CustomUser(AbstractUser):
         verbose_name_plural = 'Пользователи'
         ordering = ('id',)
 
-    def str(self):
+    def __str__(self):
         return self.username
-    
+
     def save(self, *args, **kwargs):
         '''Устанавливаем права пользователя перед сохранением.'''
         if self.is_superuser:

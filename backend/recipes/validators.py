@@ -14,7 +14,10 @@ def validate_color(value):
 class CustomTimeValidate(models.PositiveSmallIntegerField):
     def __init__(self, *args, **kwargs):
         kwargs['validators'] = [
-            MinValueValidator(1, message='Даже мама не может так быстро готовить!'),
+            MinValueValidator(
+                1,
+                message='Даже мама не может так быстро готовить!'
+            ),
             MaxValueValidator(1440, message='Так может готовить только папа!'),
         ]
         super().__init__(*args, **kwargs)
@@ -32,4 +35,3 @@ class CustomTimeValidate(models.PositiveSmallIntegerField):
             raise ValidationError('Не менее одной минуты')
         if value > 1440:
             raise ValidationError('Не дольше 24 часов')
-

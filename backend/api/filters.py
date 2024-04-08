@@ -6,11 +6,15 @@ from recipes.models import Ingredient, Recipe, Tag
 User = get_user_model()
 
 # Фильтр для ингредиентов
+
+
 class IngredientNameFilter(filters.FilterSet):
+
     name = filters.CharFilter(
         field_name='name',
         lookup_expr='istartswith'
     )
+
     class Meta:
         model = Ingredient
         fields = (
@@ -18,6 +22,8 @@ class IngredientNameFilter(filters.FilterSet):
             'measurement_unit',
         )
 # Фильтр для рецептов
+
+
 class RecipeFilter(filters.FilterSet):
     tags = filters.ModelMultipleChoiceFilter(
         field_name='tags__slug',
