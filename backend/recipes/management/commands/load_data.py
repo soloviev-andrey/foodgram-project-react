@@ -8,7 +8,7 @@ from recipes.models import Ingredient
 
 class Command(BaseCommand):
     help = 'Импорт ингредиентов из CSV файла'
-    file_path = '/data/ingredients.csv'
+    file_path = 'data/ingredients.csv'
 
     def add_arguments(self, parser):
         parser.add_argument(
