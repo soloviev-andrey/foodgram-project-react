@@ -1,5 +1,7 @@
+from io import StringIO
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
+import csv
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -8,100 +10,19 @@ from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import (SAFE_METHODS, IsAuthenticated,
+from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
 from users.models import Subscrime
 
 from api.filters import IngredientNameFilter, RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
-
-from .serializers import (CustomUserSerializer, IngredientSerializer,
-                          RecipeCreateUpdateSerializer, RecipeCutSerializer,
+from users.serializers import ExtendedUserSerializer
+from api.serializers import (IngredientSerializer, SnippetRecipeSerializer,
+                          RecipeCreateUpdateSerializer,
                           RecipeSerializer, SubscrimeSerializer, TagSerializer)
 
-# -----------------------------------------------------------------------------
-#                            Users
-# -----------------------------------------------------------------------------
-
-User = get_user_model()
-
-
-class CustomUserViewSet(UserViewSet):
-    queryset = User.objects.all()
-    serializer_class = CustomUserSerializer
-    permission_classes = (IsAuthenticatedOrReadOnly,)
-
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        url_path='subscribe',
-        url_name='subscribe',
-        permission_classes=(IsAuthenticated,),
-    )
-    def subscribe(self, request, **kwargs):
-        author = get_object_or_404(User, id=self.kwargs.get('id'))
-        if author == request.user:
-            return Response(
-                'Вы не можете подписаться на самого себя',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if request.method == 'POST':
-            subscription, created = Subscrime.objects.get_or_create(
-                user=request.user, author=author
-            )
-            if not created:
-                return Response(
-                    'Вы уже подписаны на этого автора',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            serializer = SubscrimeSerializer(
-                author,
-                context={'request': request}
-            )
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-        if request.method == 'DELETE':
-            try:
-                subscription = Subscrime.objects.get(
-                    user=request.user,
-                    author=author
-                )
-                subscription.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            except Subscrime.DoesNotExist:
-                return Response(
-                    'Подписка не существует',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-    @action(
-        detail=False,
-        methods=['GET'],
-        url_path='subscriptions',
-        url_name='subscriptions',
-        permission_classes=(IsAuthenticated,),
-    )
-    def subscriptions(self, request):
-        queryset = User.objects.filter(author__user=self.request.user)
-        if queryset:
-            serializer = SubscrimeSerializer(
-                self.paginate_queryset(queryset),
-                context={'request': request},
-                many=True
-            )
-            return self.get_paginated_response(serializer.data)
-        return Response(
-            {'Вы не подписались ни на кого'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-# -----------------------------------------------------------------------------
-#                            Recipes
-# -----------------------------------------------------------------------------
-
+CustomUser = get_user_model()
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
@@ -116,6 +37,76 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_class = IngredientNameFilter
     pagination_class = None
 
+class CustomUserViewSet(UserViewSet):
+    queryset = CustomUser.objects.all()
+    serializer_class = ExtendedUserSerializer
+    permission_classes = (IsAuthenticatedOrReadOnly,)
+
+    @action(
+        detail=True,
+        methods=['POST','DELETE',],
+        permission_classes=(IsAuthenticated,),
+    )
+    def subscribe(self, request, **kwargs):
+        sub_aut = get_object_or_404(CustomUser, id=self.kwargs.get('id'))
+        if sub_aut == self.request.user:
+            return Response(
+                'Вам отказано в данном действии',
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if request.method == 'POST':
+            sub_instanse, new_creat = Subscrime.objects.get_or_create(
+                user=request.user, author=sub_aut
+            )
+            if not new_creat:
+                return Response(
+                    'Уже есть подписка на данного автора',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer = SubscrimeSerializer(
+                sub_aut,
+                context={'request': request}
+            )
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+        if request.method == 'DELETE':
+            try:
+                sub_instanse = Subscrime.objects.get(
+                    user=request.user,
+                    author=sub_aut
+                )
+                sub_instanse.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            except Subscrime.DoesNotExist:
+                return Response(
+                    'Подписка не существует, или еще не создана',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+
+    @action(
+        detail=False,
+        methods=['GET'],
+        permission_classes=(IsAuthenticated,),
+    )
+
+    def subscriptions(self, request):
+        data_source = CustomUser.objects.filter(author__user=self.request.user)
+        sub_serializer = SubscrimeSerializer(
+                self.paginate_queryset(data_source),
+                context={'request': request},
+                many=True
+            )
+
+        if not data_source.exists():
+            return Response(
+                {'Вы не подписались ни на кого'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return self.get_paginated_response(sub_serializer.data)
+
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
@@ -127,29 +118,29 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
-        if self.request.method in SAFE_METHODS:
-            return RecipeSerializer
-        return RecipeCreateUpdateSerializer
+        if self.request.method != 'GET':
+            return RecipeCreateUpdateSerializer
+        return RecipeSerializer
 
     def create_or_destroy(self, request, model, serializer):
 
         if request.method == 'POST':
             try:
                 recipe_id = self.kwargs.get('pk')
-                recipe = Recipe.objects.get(pk=recipe_id)
+                recipe_obj = Recipe.objects.get(pk=recipe_id)
             except Recipe.DoesNotExist:
                 return Response(
                     'Рецепт не найден',
                     status.HTTP_400_BAD_REQUEST
                 )
-            instance, created = model.objects.select_related(
+            obj, added = model.objects.select_related(
                 'user',
                 'recipe',
-            ).get_or_create(user=request.user, recipe=recipe)
+            ).get_or_create(user=request.user, recipe=recipe_obj)
 
-            if created:
-                serializer = RecipeCutSerializer(
-                    recipe,
+            if added:
+                serializer = SnippetRecipeSerializer(
+                    recipe_obj,
                     context={'request': request}
                 )
                 return Response(
@@ -164,18 +155,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if request.method == 'DELETE':
             try:
                 recipe_id = self.kwargs.get('pk')
-                recipe = Recipe.objects.get(pk=recipe_id)
+                recipe_obj = Recipe.objects.get(pk=recipe_id)
             except Recipe.DoesNotExist:
                 return Response(
                     'Рецепт не найден',
                     status=status.HTTP_404_NOT_FOUND
                 )
-            instance, created = model.objects.select_related(
+            obj, added = model.objects.select_related(
                 'user',
                 'recipe',
-            ).get_or_create(user=request.user, recipe=recipe)
-            if not created:
-                instance.delete()
+            ).get_or_create(user=request.user, recipe=recipe_obj)
+            if not added:
+                obj.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
             return Response(
                 'Нечего удалять',
@@ -185,8 +176,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['POST', 'DELETE'],
-        url_path='shopping_cart',
-        url_name='shopping_cart',
         permission_classes=(IsAuthenticated,),
     )
     def shopping_cart(self, request, **kwargs):
@@ -200,39 +189,72 @@ class RecipeViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=['GET'],
         url_path='download_shopping_cart',
-        url_name='download_shopping_cart',
         permission_classes=(IsAuthenticated,),
     )
-    def download_shopping_cart(self, request):
-        ingredients = (IngredientsRecipe.objects.filter(
-            recipe__shopping_cart__user=request.user).values(
-            'ingredient__name',
-            'ingredient__measurement_unit',
-        ).annotate(amount=Sum('amount')))
-        purchased_in_file = []
-        for ingredient in ingredients:
-            purchased_in_file.append('{name} - {amount} {m_unit}\n'.format(
-                name=ingredient.get('ingredient__name'),
-                amount=ingredient.get('amount'),
-                m_unit=ingredient.get('ingredient__measurement_unit')
-            ))
-        response = HttpResponse(purchased_in_file, content_type='text/plain')
-        response['Content-Disposition'] = (
-            'attachment; filename=shopping-list.txt'
+    def get_shopcart_file(self, request):
+        format = request.query_params.get('format', 'txt')
+        ingredients = IngredientsRecipe.objects.filter(
+            recipe__shopping_cart__user=self.request.user
+            )
+
+        dict_value = ingredients.values(
+                'ingredient__name',
+                'ingredient__measurement_unit',
+                ).annotate(amount=Sum('amount'))
+        
+        if format == 'txt':
+            shopcart_file = []
+            for ing in dict_value:
+                shopcart_file.append(
+                    '{name} - {amount} {measurement_unit}\n'.format(
+                        name=ing.get('ingredient__name'),
+                        amount=ing.get('amount'),
+                        measurement_unit=ing.get(
+                            'ingredient__measurement_unit'
+                        )
+                    )
+                )
+            response = HttpResponse(shopcart_file, content_type='text/plain')
+            response['Content-Disposition'] = (
+                'attachment; filename=shopping-list.txt'
+            )
+        elif format == 'csv':
+            csv_data = StringIO()
+            csv_writer = csv.writer(csv_data)
+            csv_writer.writerow(
+                [
+                    'Наименование',
+                    'Кол-во',
+                    'Единица измерения товара'
+                ]
+            )
+            for ingredient in ingredients:
+                csv_writer.writerow([
+                    ingredient.get('ingredient__name'),
+                    ingredient.get('amount'),
+                    ingredient.get('ingredient__measurement_unit')
+                ])
+            response = HttpResponse(csv_data.getvalue(), content_type='text/csv')
+            response['Content-Disposition'] = (
+                'attachment; filename=shopping-list.csv'
         )
+        else:
+            return HttpResponse("Unsupported format", status=400)
 
         return response
+
+
+        
 
     @action(
         detail=True,
         methods=['POST', 'DELETE'],
-        url_path='favorite',
-        url_name='favorite',
         permission_classes=(IsAuthenticated,),
     )
-    def Favorite(self, request, **kwargs):
+    def favorite(self, request, **kwargs): 
         return self.create_or_destroy(
             request,
             Favorite,
             self.kwargs.get('pk')
         )
+

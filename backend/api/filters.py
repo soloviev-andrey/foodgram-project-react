@@ -5,9 +5,6 @@ from recipes.models import Ingredient, Recipe, Tag
 
 User = get_user_model()
 
-# Фильтр для ингредиентов
-
-
 class IngredientNameFilter(filters.FilterSet):
 
     name = filters.CharFilter(
@@ -21,7 +18,6 @@ class IngredientNameFilter(filters.FilterSet):
             'name',
             'measurement_unit',
         )
-# Фильтр для рецептов
 
 
 class RecipeFilter(filters.FilterSet):
