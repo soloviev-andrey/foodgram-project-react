@@ -194,7 +194,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_shopcart_file(self, request):
         format = request.query_params.get('format', 'txt')
         ingredients = IngredientsRecipe.objects.filter(
-            recipe__shopping_cart__user=self.request.user
+            recipe__shoppingcart__user=self.request.user
             )
 
         dict_value = ingredients.values(

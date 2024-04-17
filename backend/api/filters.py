@@ -44,16 +44,16 @@ class RecipeFilter(filters.FilterSet):
         if not isinstance(self.request.user, AnonymousUser):
             user = self.request.user
             if value:
-                return queryset.filter(favorites__user=user)
+                return queryset.filter(favorite__user=user)
             else:
-                return queryset.exclude(favorites__user=user)
+                return queryset.exclude(favorite__user=user)
         return queryset
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         if not isinstance(self.request.user, AnonymousUser):
             user = self.request.user
             if value:
-                return queryset.filter(shopping_cart__user=user)
+                return queryset.filter(shoppingcart__user=user)
             else:
-                return queryset.exclude(shopping_cart__user=user)
+                return queryset.exclude(shoppingcart__user=user)
         return queryset
