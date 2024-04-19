@@ -24,7 +24,7 @@ class IngredientSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class IngredientsRecipeSerializer(RecipeIngredientsExtendedSerializer):
-    '''Сериализатор для вывода информация согласно тз модели IngredientsRecipe'''
+    '''Сериализатор для вывода информация согласно тз'''
     class Meta:
         model = IngredientsRecipe
         fields = (

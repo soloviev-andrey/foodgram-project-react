@@ -1,9 +1,7 @@
-from django.contrib.auth import get_user_model
 from django.db import models
+from .constant import MAX_LEN, User
 from .validators import BaseUnitValid, Valid_color
 
-User = get_user_model()
-MAX_LEN = 200
 class Tag(models.Model):
     '''Модель тега'''
 

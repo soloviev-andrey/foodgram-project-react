@@ -4,15 +4,17 @@ from django.core.validators import RegexValidator
 from rest_framework import serializers, status
 from django.apps import apps
 
+from .constant import MIN, MAX
+
 
 valid_name = RegexValidator(
-    regex = r'^[.@+-]+',
-    message = 'Некорректное имя',
+    regex=r'^[\w.@+-]+$',
+    message='Имя написано некорректно',
 )
 
 Valid_color = RegexValidator(
     regex=r'^#[0-9A-Fa-f]{6}$',
-    message='неправильно офрмили формат',
+    message='формат записи цвета -неправельный',
     code='invalid_color'
 )
 
@@ -21,10 +23,10 @@ class BaseUnitValid(models.PositiveSmallIntegerField):
         # Добавляем валидаторы для поля
         kwargs['validators'] = [
             MinValueValidator(
-                1,
+                MIN,
                 message='мало'
             ),
-            MaxValueValidator(1440, message='много'),
+            MaxValueValidator(MAX, message='много'),
         ]
         super().__init__(*args, **kwargs)
 
@@ -48,7 +50,7 @@ class DataValidationHelpers:
 
     @staticmethod
     def validate_amount(value):
-        if value < 1 or value > 5000:
+        if not MIN <= value <= MAX:
             raise serializers.ValidationError(
                 'Кол-во должно быть от 1 до 5000!'
             )
@@ -56,7 +58,7 @@ class DataValidationHelpers:
 
     @staticmethod
     def validate_cooking_time(value):
-        if not 1 <= value <= 5000:
+        if not MIN <= value <= MAX:
             raise serializers.ValidationError(
                 'Пожалуйста, указывайте адекватное время готовки!'
             )

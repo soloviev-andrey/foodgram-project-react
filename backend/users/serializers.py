@@ -1,11 +1,9 @@
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
+from recipes.constant import User
 from users.models import Subscrime
-
-CustomUser = get_user_model()
 
 
 class ExtendedUserSerializer(UserSerializer):
@@ -18,7 +16,7 @@ class ExtendedUserSerializer(UserSerializer):
                 'Неавторизованный пользователь'
             )
         return super().to_representation(instance)
-    
+
     def get_is_subscribed(serializer, target):
         request = serializer.context.get('request')
         if request and request.user.is_staff:
@@ -36,7 +34,7 @@ class ExtendedUserSerializer(UserSerializer):
         return False
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'id',
             'username',
@@ -49,7 +47,7 @@ class ExtendedUserSerializer(UserSerializer):
 class ExtendedAddUserSerializer(UserCreateSerializer):
     '''Сериализатор регистрации и создания пользователя'''
     class Meta:
-        model = CustomUser
+        model = User
         fields = (
             'id',
             'username',

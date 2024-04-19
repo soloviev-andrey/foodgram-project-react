@@ -2,10 +2,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from recipes.validators import valid_name
 
+
 MAX_LEN = 150
 EMAIL_LEN = 254
-
-
 class CustomUser(AbstractUser):
     '''Модель Пользователя'''
     username = models.CharField(

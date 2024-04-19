@@ -1,31 +1,37 @@
 from django.db.models import Exists, OuterRef
 from django_filters import rest_framework as filters
-from recipes.models import Favorite, Recipe, ShoppingCart, Tag
+from recipes.models import Recipe
 from django.contrib.auth.models import AnonymousUser
+from django.apps import apps
 
 class RecipeFilter(filters.FilterSet):
-    tags = filters.ModelMultipleChoiceFilter(
+    tags = filters.MultipleChoiceFilter(
         field_name='tags__slug',
-        queryset=Tag.objects.all(),
-        to_field_name='slug',
+        choices=[
+            (tag.slug, tag.name) for tag in apps.get_model(
+                'recipes', 'Tag'
+                ).objects.all()
+        ],
     )
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
+        favorite=apps.get_model('recipes', 'Favorite')
         if isinstance(user, AnonymousUser):
             return queryset.none()
         
         return queryset.annotate(
-            Favorite=Exists(Favorite.objects.filter(user=user, recipe_id=OuterRef('id')))
+            Favorite=Exists(favorite.objects.filter(user=user, recipe_id=OuterRef('id')))
         ).filter(Favorite=value)
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
+        shopcart = apps.get_model('recipes', 'ShoppingCart')
         if isinstance(user, AnonymousUser):
             return queryset.none()
         
         return queryset.annotate(
-            ShopCart=Exists(ShoppingCart.objects.filter(user=user, recipe_id=OuterRef('id')))
+            ShopCart=Exists(shopcart.objects.filter(user=user, recipe_id=OuterRef('id')))
         ).filter(ShopCart=value)
 
     is_favorited = filters.BooleanFilter(method='filter_is_favorited')
