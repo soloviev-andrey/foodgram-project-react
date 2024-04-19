@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from .custom_fields import CustomRecipeFieldsSerializer, RecipeIngredientsExtendedSerializer
-from .validators import DataValidationHelpers
+from recipes.validators import DataValidationHelpers
 from .image_service import ExtendedImageField
 from users.serializers import ExtendedUserSerializer
 from recipes.models import (Ingredient, IngredientsRecipe, Recipe,

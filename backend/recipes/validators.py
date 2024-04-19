@@ -1,10 +1,18 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.core.validators import RegexValidator
+from rest_framework import serializers, status
+from django.apps import apps
+
+
+valid_name = RegexValidator(
+    regex = r'^[.@+-]+',
+    message = 'Некорректное имя',
+)
 
 Valid_color = RegexValidator(
     regex=r'^#[0-9A-Fa-f]{6}$',
-    message='Введите корректный цвет в формате HEX (например, #RRGGBB).',
+    message='неправильно офрмили формат',
     code='invalid_color'
 )
 
@@ -14,8 +22,58 @@ class BaseUnitValid(models.PositiveSmallIntegerField):
         kwargs['validators'] = [
             MinValueValidator(
                 1,
-                message='невозможно так быстро'
+                message='мало'
             ),
-            MaxValueValidator(1440, message='очень долго'),
+            MaxValueValidator(1440, message='много'),
         ]
         super().__init__(*args, **kwargs)
+
+class DataValidationHelpers:
+    
+    @staticmethod
+    def verify_recipe_relation(obj, user, model):
+        if user.is_authenticated:
+            return model.objects.filter(user=user, recipe=obj).exists()
+        return False
+
+    @staticmethod
+    def validate_id(value):
+        Ingredient = apps.get_model('recipes', 'Ingredient')
+        if not Ingredient.objects.filter(id=value).exists():
+            raise serializers.ValidationError(
+                'Ингредиент с таким ID не существует!',
+                code=status.HTTP_400_BAD_REQUEST
+            )
+        return value
+
+    @staticmethod
+    def validate_amount(value):
+        if value < 1 or value > 5000:
+            raise serializers.ValidationError(
+                'Кол-во должно быть от 1 до 5000!'
+            )
+        return value
+
+    @staticmethod
+    def validate_cooking_time(value):
+        if not 1 <= value <= 5000:
+            raise serializers.ValidationError(
+                'Пожалуйста, указывайте адекватное время готовки!'
+            )
+        return value
+
+    @staticmethod
+    def validate_tags(value):
+        unique_tags = []
+        if not value:
+            raise serializers.ValidationError(
+                'Нужно выбрать хотя бы 1 тег!',
+                code='required'
+            )
+        for tag in value:
+            if tag in unique_tags:
+                raise serializers.ValidationError(
+                    'Не стоит добавлять один и тот же тэг!'
+                )
+            unique_tags.append(tag)
+        return value

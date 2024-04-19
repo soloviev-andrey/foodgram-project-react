@@ -6,8 +6,8 @@ from django.contrib.auth.models import AnonymousUser
 class RecipeFilter(filters.FilterSet):
     tags = filters.ModelMultipleChoiceFilter(
         field_name='tags__slug',
+        queryset=Tag.objects.all(),
         to_field_name='slug',
-        queryset=Tag.objects.all()
     )
 
     def filter_is_favorited(self, queryset, name, value):
@@ -37,6 +37,6 @@ class RecipeFilter(filters.FilterSet):
             'tags',
             'author',
             'is_favorited',
-            'is_in_shopping_cart'
+            'is_in_shopping_cart',
         )
 

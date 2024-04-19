@@ -109,7 +109,8 @@ class CustomUserViewSet(UserViewSet):
     )
 
     def subscriptions(self, request):
-        data_source = CustomUser.objects.filter(author__user=self.request.user)
+        user = CustomUser.objects.all()
+        data_source = user.filter(sub_fun__user=self.request.user)
         sub_serializer = SubscrimeSerializer(
                 self.paginate_queryset(data_source),
                 context={'request': request},

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from recipes.models import Favorite, ShoppingCart
-from .validators import DataValidationHelpers
+from recipes.validators import DataValidationHelpers
 
 class RecipeIngredientsExtendedSerializer(serializers.ModelSerializer):
     id = serializers.SerializerMethodField()
