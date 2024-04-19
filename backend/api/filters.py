@@ -1,24 +1,7 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.db.models import Exists, OuterRef
 from django_filters import rest_framework as filters
-from recipes.models import Ingredient, Recipe, Tag
-
-User = get_user_model()
-
-class IngredientNameFilter(filters.FilterSet):
-
-    name = filters.CharFilter(
-        field_name='name',
-        lookup_expr='istartswith'
-    )
-
-    class Meta:
-        model = Ingredient
-        fields = (
-            'name',
-            'measurement_unit',
-        )
-
+from recipes.models import Favorite, Recipe, ShoppingCart, Tag
+from django.contrib.auth.models import AnonymousUser
 
 class RecipeFilter(filters.FilterSet):
     tags = filters.ModelMultipleChoiceFilter(
@@ -26,10 +9,27 @@ class RecipeFilter(filters.FilterSet):
         to_field_name='slug',
         queryset=Tag.objects.all()
     )
+
+    def filter_is_favorited(self, queryset, name, value):
+        user = self.request.user
+        if isinstance(user, AnonymousUser):
+            return queryset.none()
+        
+        return queryset.annotate(
+            Favorite=Exists(Favorite.objects.filter(user=user, recipe_id=OuterRef('id')))
+        ).filter(Favorite=value)
+
+    def filter_is_in_shopping_cart(self, queryset, name, value):
+        user = self.request.user
+        if isinstance(user, AnonymousUser):
+            return queryset.none()
+        
+        return queryset.annotate(
+            ShopCart=Exists(ShoppingCart.objects.filter(user=user, recipe_id=OuterRef('id')))
+        ).filter(ShopCart=value)
+
     is_favorited = filters.BooleanFilter(method='filter_is_favorited')
-    is_in_shopping_cart = filters.BooleanFilter(
-        method='filter_is_in_shopping_cart'
-    )
+    is_in_shopping_cart = filters.BooleanFilter(method='filter_is_in_shopping_cart')
 
     class Meta:
         model = Recipe
@@ -40,20 +40,3 @@ class RecipeFilter(filters.FilterSet):
             'is_in_shopping_cart'
         )
 
-    def filter_is_favorited(self, queryset, name, value):
-        if not isinstance(self.request.user, AnonymousUser):
-            user = self.request.user
-            if value:
-                return queryset.filter(favorite__user=user)
-            else:
-                return queryset.exclude(favorite__user=user)
-        return queryset
-
-    def filter_is_in_shopping_cart(self, queryset, name, value):
-        if not isinstance(self.request.user, AnonymousUser):
-            user = self.request.user
-            if value:
-                return queryset.filter(shoppingcart__user=user)
-            else:
-                return queryset.exclude(shoppingcart__user=user)
-        return queryset

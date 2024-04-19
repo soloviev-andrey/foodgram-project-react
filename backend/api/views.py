@@ -1,3 +1,4 @@
+from rest_framework.filters import SearchFilter
 from io import StringIO
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
@@ -15,12 +16,13 @@ from rest_framework.permissions import (IsAuthenticated,
 from rest_framework.response import Response
 from users.models import Subscrime
 
-from api.filters import IngredientNameFilter, RecipeFilter
+from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from users.serializers import ExtendedUserSerializer
 from api.serializers import (IngredientSerializer, SnippetRecipeSerializer,
                           RecipeCreateUpdateSerializer,
                           RecipeSerializer, SubscrimeSerializer, TagSerializer)
+
 
 CustomUser = get_user_model()
 
@@ -33,14 +35,28 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    filter_backends = (DjangoFilterBackend,)
-    filterset_class = IngredientNameFilter
     pagination_class = None
+    filter_backends = [SearchFilter,]
+    
+    def get_queryset(self):
+        queryset = self.queryset
+        name = self.request.query_params.get('name', None)
+        search_method = self.request.query_params.get('search_method', 'startswith')
+    
+        if name is not None:
+            if search_method == 'contains':
+                queryset = queryset.filter(name__icontains=name)
+            elif search_method == 'endswith':
+                queryset = queryset.filter(name__iendswith=name)
+            else:
+                # По умолчанию используем istartswith
+                queryset = queryset.filter(name__istartswith=name)
+        return queryset
 
 class CustomUserViewSet(UserViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = ExtendedUserSerializer
-    permission_classes = (IsAuthenticatedOrReadOnly,)
+    permission_classes = [IsAuthenticatedOrReadOnly,]
 
     @action(
         detail=True,
@@ -107,14 +123,10 @@ class CustomUserViewSet(UserViewSet):
             )
         return self.get_paginated_response(sub_serializer.data)
 
-
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = (
-        IsAuthenticatedOrReadOnly,
-        IsAuthorOrReadOnly,
-    )
-    filter_backends = (DjangoFilterBackend,)
+    permission_classes = [IsAuthorOrReadOnly,]
+    filter_backends = [DjangoFilterBackend,]
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
@@ -257,4 +269,3 @@ class RecipeViewSet(viewsets.ModelViewSet):
             Favorite,
             self.kwargs.get('pk')
         )
-

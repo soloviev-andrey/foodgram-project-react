@@ -18,6 +18,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 class IngredientSerializer(serializers.ModelSerializer):
     '''Сериализатор ингредиентов'''
+
     class Meta:
         model = Ingredient
         fields = '__all__'
@@ -108,25 +109,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             DataValidationHelpers.validate_cooking_time
         ]
     )
-
-class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
-    '''Сериализатор добавления и обновления рецепта'''
-    tags = serializers.PrimaryKeyRelatedField(
-        queryset=Tag.objects.all(),
-        required=True,
-        many=True,
-    )
-    author = ExtendedUserSerializer(read_only=True)
-    ingredients = CreateIngredientsRecipeSerializer(many=True)
-    image = ExtendedImageField(
-        valid_formats=['jpg', 'jpeg', 'png'],
-        max_size=1024*1024
-    )
-    cooking_time = serializers.IntegerField(
-        validators=[
-            DataValidationHelpers.validate_cooking_time
-        ]
-    )
     
     def validate(self, attrs):
         ingredients = attrs.get('ingredients')
@@ -170,7 +152,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         try:
             recipe = Recipe.objects.create(**validated_data, author=author)
             self.create_ingredients(ingredients, recipe)
-            self.create_tags(tags, recipe)
+            '''self.create_tags(tags, recipe)'''
             return recipe
         except IntegrityError:
             raise serializers.ValidationError(
