@@ -1,6 +1,8 @@
 import base64
+
 from django.core.files.base import ContentFile
 from rest_framework import serializers
+
 
 class ExtendedImageField(serializers.ImageField):
     def __init__(self, *args, **kwargs):

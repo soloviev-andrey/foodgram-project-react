@@ -1,3 +1,4 @@
+from urllib import request
 from django.contrib.auth import get_user_model
 
 MIN = 1

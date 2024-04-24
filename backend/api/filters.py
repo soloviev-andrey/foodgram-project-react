@@ -1,8 +1,9 @@
+from django.apps import apps
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import Exists, OuterRef
 from django_filters import rest_framework as filters
 from recipes.models import Recipe, Tag
-from django.contrib.auth.models import AnonymousUser
-from django.apps import apps
+
 
 class RecipeFilter(filters.FilterSet):
 
@@ -22,7 +23,12 @@ class RecipeFilter(filters.FilterSet):
             return queryset
         
         return queryset.annotate(
-            Favorite=Exists(favorite.objects.filter(user=user, recipe_id=OuterRef('id')))
+            Favorite=Exists(
+                favorite.objects.filter(
+                    user=user,
+                    recipe_id=OuterRef('id')
+                )
+            )
         ).filter(Favorite=value)
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
@@ -32,7 +38,12 @@ class RecipeFilter(filters.FilterSet):
             return queryset
         
         return queryset.annotate(
-            ShopCart=Exists(shopcart.objects.filter(user=user, recipe_id=OuterRef('id')))
+            ShopCart=Exists(
+                shopcart.objects.filter(
+                    user=user,
+                    recipe_id=OuterRef('id')
+                )
+            )
         ).filter(ShopCart=value)
 
 

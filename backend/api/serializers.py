@@ -1,14 +1,17 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
-from .custom_fields import CustomRecipeFieldsSerializer, RecipeIngredientsExtendedSerializer
+from recipes.models import (Ingredient, IngredientsRecipe, Recipe, RecipeTag,
+                            Tag)
 from recipes.validators import DataValidationHelpers
-from .image_service import ExtendedImageField
-from users.serializers import ExtendedUserSerializer
-from recipes.models import (Ingredient, IngredientsRecipe, Recipe,
-                            RecipeTag, Tag)
 from rest_framework import serializers
 from users.models import Subscrime
+from users.serializers import ExtendedUserSerializer
+
+from .custom_utils import (CustomRecipeFieldsSerializer,
+                            RecipeIngredientsExtendedSerializer)
+from .image_service import ExtendedImageField
+
 
 class TagSerializer(serializers.ModelSerializer):
     '''Сериализатор тэгов'''
@@ -109,24 +112,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         ]
     )
     
-    def validate(self, attrs):
-        ingredients = attrs.get('ingredients')
-        if not ingredients:
-            raise serializers.ValidationError(
-                'Не оставляйте поле пустым, добавьте ингредиент'
-            )
-        uniq_ings = set()
-        for ingredient in ingredients:
-            ing = get_object_or_404(
-                Ingredient,
-                id=ingredient.get('id')
-            )
-            if ing in uniq_ings:
-                raise serializers.ValidationError(
-                    'Добавлять одинаковые элементы запрещено'
-                )
-            uniq_ings.add(ing)
-        return attrs
+
+    def validate(self, value):
+        return DataValidationHelpers.validate_ingredients(value)
+    
+    def validate_tags(self, value):
+        return DataValidationHelpers.validate_tags(value)
 
     def create_tags(self, tags, recipe):
         for tag in tags:
@@ -156,22 +147,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 'Такой рецепт уже существует!'
             )
-    
-    def validate_tags(self, value):
-        if not value:
-            raise serializers.ValidationError(
-                'Нужно выбрать хотя бы 1 тег!', code='required'
-            )
-        
-        unique_tags = set()
-        for tag in value:
-            if tag in unique_tags:
-                raise serializers.ValidationError(
-                    'Не стоит добавлять один и тот же тэг!'
-                )
-            unique_tags.add(tag)
-        
-        return value
+
 
     def update(self, instance, validated_data):
         if 'tags' not in validated_data:
@@ -179,7 +155,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                 'Поле "tags" обязательно для обновления рецепта.'
             )
         tags = validated_data.pop('tags')
-        instance.tags.clear()
         ingredients = validated_data.pop('ingredients', [])
         IngredientsRecipe.objects.filter(recipe=instance).delete()
         self.create_ingredients(ingredients, instance)

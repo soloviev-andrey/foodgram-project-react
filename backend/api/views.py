@@ -1,10 +1,5 @@
-from rest_framework.filters import SearchFilter
-from io import StringIO
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from rest_framework.response import Response
-from django.core.exceptions import ObjectDoesNotExist
-import csv
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -13,18 +8,19 @@ from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
 from users.models import Subscrime
+from users.serializers import ExtendedUserSerializer
 
 from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
-from users.serializers import ExtendedUserSerializer
-from api.serializers import (IngredientSerializer, IngredientsRecipeSerializer, SnippetRecipeSerializer,
-                          RecipeCreateUpdateSerializer,
-                          RecipeSerializer, SubscrimeSerializer, TagSerializer)
-
+from api.serializers import (IngredientSerializer,
+                             RecipeCreateUpdateSerializer, RecipeSerializer,
+                             SnippetRecipeSerializer, SubscrimeSerializer,
+                             TagSerializer)
 
 CustomUser = get_user_model()
 
@@ -66,6 +62,7 @@ class CustomUserViewSet(UserViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def subscribe(self, request, **kwargs):
+        
         sub_aut = get_object_or_404(CustomUser, id=self.kwargs.get('id'))
         if sub_aut == self.request.user:
             return Response(
@@ -173,19 +170,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated]
     )
     def shopping_cart(self, request, **kwargs):
-        if request.method == 'POST':
-            return self.create_object(request, ShoppingCart, kwargs.get('pk'))
-        return self.delete_object(request, ShoppingCart, kwargs.get('pk'))
+        return self._process_action(request, ShoppingCart, kwargs.get('pk'))
+
 
     @action(
             detail=True,
             methods=['POST', 'DELETE'],
             permission_classes=[IsAuthenticated]
     )
+    
     def favorite(self, request, **kwargs):
-        if request.method == 'POST':
-            return self.create_object(request, Favorite, kwargs.get('pk'))
-        return self.delete_object(request, Favorite, kwargs.get('pk'))
+        return self._process_action(request, Favorite, kwargs.get('pk'))
 
 
     @action(
@@ -194,17 +189,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
         url_path='download_shopping_cart',
         permission_classes=(IsAuthenticated,),
     )
-    def get_shopcart_file(self, request):
-        ingredients = IngredientsRecipe.objects.filter(
+    def get_generate_shopcart_file(self, request):
+        items_que = IngredientsRecipe.objects.all()
+        ingredients = items_que.filter(
             recipe__shoppingcart__user=self.request.user
             )
 
         dict_value = ingredients.values(
                 'ingredient__name',
                 'ingredient__measurement_unit',
-                ).annotate(amount=Sum('amount'))
+                )
+        amount = dict_value.annotate(amount=Sum('amount'))
         shopcart_file = []
-        for ing in dict_value:
+        for ing in amount:
             shopcart_file.append(
                 '{name} - {amount} {measurement_unit}\n'.format(
                     name=ing.get('ingredient__name'),
@@ -219,3 +216,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             'attachment; filename=shopping-list.txt'
         )
         return response
+
+
+    def _process_action(self, request, model_class, pk):
+        action = self.create_object if request.method == 'POST' else self.delete_object
+        return action(request, model_class, pk)

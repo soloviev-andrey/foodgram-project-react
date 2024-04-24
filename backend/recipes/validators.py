@@ -2,7 +2,10 @@ from django.apps import apps
 from django.core.validators import (MaxValueValidator, MinValueValidator,
                                     RegexValidator)
 from django.db import models
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
+
+
 
 from .constant import MAX, MIN
 
@@ -60,7 +63,7 @@ class DataValidationHelpers:
 
     @staticmethod
     def validate_tags(value):
-        unique_tags = []
+        unique_tags = set() 
         if not value:
             raise serializers.ValidationError(
                 'Нужно выбрать хотя бы 1 тег!',
@@ -71,5 +74,28 @@ class DataValidationHelpers:
                 raise serializers.ValidationError(
                     'Не стоит добавлять один и тот же тэг!'
                 )
-            unique_tags.append(tag)
+            unique_tags.add(tag)
+        return value
+    
+
+    
+    @staticmethod
+    def validate_ingredients(value):
+        ingredients = value.get('ingredients')
+        if not ingredients:
+            raise serializers.ValidationError(
+                'Не оставляйте поле пустым, добавьте ингредиент'
+            )
+        uniq_ings = set()
+        for ingredient in ingredients:
+            Ingredient = apps.get_model('recipes', 'Ingredient')
+            ing = get_object_or_404(
+                Ingredient,
+                id=ingredient.get('id')
+            )
+            if ing in uniq_ings:
+                raise serializers.ValidationError(
+                    'Добавлять одинаковые элементы запрещено'
+                )
+            uniq_ings.add(ing)
         return value
