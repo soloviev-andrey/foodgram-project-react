@@ -1,10 +1,10 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
-from recipes.validators import valid_name
-
 
 MAX_LEN = 150
 EMAIL_LEN = 254
+
 class CustomUser(AbstractUser):
     '''Модель Пользователя'''
     username = models.CharField(
@@ -12,7 +12,7 @@ class CustomUser(AbstractUser):
         max_length=MAX_LEN,
         unique=True,
         blank=False,
-        validators=[valid_name],
+        validators=[UnicodeUsernameValidator()],
     )
     first_name = models.CharField(
         'Имя',

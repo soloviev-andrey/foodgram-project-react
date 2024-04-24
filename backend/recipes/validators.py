@@ -1,16 +1,10 @@
-from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
-from django.core.validators import RegexValidator
-from rest_framework import serializers, status
 from django.apps import apps
+from django.core.validators import (MaxValueValidator, MinValueValidator,
+                                    RegexValidator)
+from django.db import models
+from rest_framework import serializers, status
 
-from .constant import MIN, MAX
-
-
-valid_name = RegexValidator(
-    regex=r'^[\w.@+-]+$',
-    message='Имя написано некорректно',
-)
+from .constant import MAX, MIN
 
 Valid_color = RegexValidator(
     regex=r'^#[0-9A-Fa-f]{6}$',

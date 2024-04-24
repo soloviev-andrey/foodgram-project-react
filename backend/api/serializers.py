@@ -58,7 +58,7 @@ class RecipeSerializer(CustomRecipeFieldsSerializer, serializers.ModelSerializer
     '''Сериализатор рецепта'''
     ingredients = IngredientsRecipeSerializer(
         many=True,
-        source='ingredients_recipe',
+        source = 'ingredients_recipe'
     )
     image = ExtendedImageField(
         valid_formats=['jpg', 'jpeg', 'png'],
@@ -95,7 +95,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     '''Сериализатор добавления и обновления рецепта'''
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
-        required=True,
         many=True,
     )
     author = ExtendedUserSerializer(read_only=True)
@@ -152,7 +151,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         try:
             recipe = Recipe.objects.create(**validated_data, author=author)
             self.create_ingredients(ingredients, recipe)
-            '''self.create_tags(tags, recipe)'''
             return recipe
         except IntegrityError:
             raise serializers.ValidationError(
@@ -174,7 +172,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             unique_tags.add(tag)
         
         return value
-
 
     def update(self, instance, validated_data):
         if 'tags' not in validated_data:

@@ -1,6 +1,8 @@
 from django.db import models
+
 from .constant import MAX_LEN, User
 from .validators import BaseUnitValid, Valid_color
+
 
 class Tag(models.Model):
     '''Модель тега'''
@@ -9,17 +11,20 @@ class Tag(models.Model):
         'Название',
         max_length=MAX_LEN,
         unique=True,
+        blank=False,
     )
     color = models.CharField(
         'Цвет',
         max_length=MAX_LEN,
         unique=True,
+        blank=False,
         validators=[Valid_color],
     )
     slug = models.SlugField(
         'Уникальный слаг',
         max_length=MAX_LEN,
-        unique=True
+        blank=False,
+        unique=True,
     )
 
     class Meta:
@@ -27,7 +32,7 @@ class Tag(models.Model):
         verbose_name_plural = 'Теги'
 
     def __str__(self):
-        return self.slug
+        return self.name
 
 
 class Ingredient(models.Model):
@@ -36,10 +41,12 @@ class Ingredient(models.Model):
     name = models.CharField(
         'Наименование ингредиента',
         max_length=MAX_LEN,
+        blank=False,
     )
     measurement_unit = models.CharField(
         'Единицы измерения',
         max_length=MAX_LEN,
+        blank=False,
     )
 
     class Meta:
@@ -56,40 +63,49 @@ class Recipe(models.Model):
         Tag,
         through='RecipeTag',
         verbose_name='Теги рецепта',
+        blank=False
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='recipes',
         verbose_name='Автор публикации (пользователь)',
+        blank=False
     )
     name = models.CharField(
         'Название',
         max_length=MAX_LEN,
+        blank=False
     )
     image = models.ImageField(
         'Картинка рецепта',
         upload_to='recipes/images/',
+        blank=False
     )
     text = models.TextField(
         'Текстовое описание',
+        blank=False
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='IngredientsRecipe',
         verbose_name='Ингредиенты',
+        blank=False
     )
     cooking_time = BaseUnitValid(
-        'Время приготовления в минутах'
+        'Время приготовления в минутах',
+        blank=False
     )
     pub_data = models.DateTimeField(
         'Время публикации',
         auto_now_add=True,
+        blank=False
     )
 
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
+        ordering = ['-pub_data',]
 
     def __str__(self):
         return self.name
@@ -142,14 +158,13 @@ class RecipeTag(models.Model):
         Recipe,
         on_delete=models.CASCADE,
     )
-
 class IngredientsRecipe(models.Model):
     '''Промежуточную модель связи Ingredients-Recipe'''
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
-        related_name='ingredients_recipe',
+        related_name='ingredients_recipe'
     )
     ingredient = models.ForeignKey(
         Ingredient,

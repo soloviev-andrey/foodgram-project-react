@@ -2,6 +2,8 @@ from rest_framework.filters import SearchFilter
 from io import StringIO
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
+from rest_framework.response import Response
+from django.core.exceptions import ObjectDoesNotExist
 import csv
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -19,7 +21,7 @@ from users.models import Subscrime
 from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from users.serializers import ExtendedUserSerializer
-from api.serializers import (IngredientSerializer, SnippetRecipeSerializer,
+from api.serializers import (IngredientSerializer, IngredientsRecipeSerializer, SnippetRecipeSerializer,
                           RecipeCreateUpdateSerializer,
                           RecipeSerializer, SubscrimeSerializer, TagSerializer)
 
@@ -131,72 +133,60 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
-        if self.request.method != 'GET':
+        if self.action in ['create', 'update', 'partial_update']:
             return RecipeCreateUpdateSerializer
         return RecipeSerializer
 
-    def create_or_destroy(self, request, model, serializer):
-
-        if request.method == 'POST':
-            try:
-                recipe_id = self.kwargs.get('pk')
-                recipe_obj = Recipe.objects.get(pk=recipe_id)
-            except Recipe.DoesNotExist:
-                return Response(
-                    'Рецепт не найден',
-                    status.HTTP_400_BAD_REQUEST
-                )
-            obj, added = model.objects.select_related(
-                'user',
-                'recipe',
-            ).get_or_create(user=request.user, recipe=recipe_obj)
-
-            if added:
-                serializer = SnippetRecipeSerializer(
-                    recipe_obj,
-                    context={'request': request}
-                )
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED
-                )
+    def create_object(self, request, model, recipe_id):
+        try:
+            recipe_obj = Recipe.objects.get(pk=recipe_id)
+        except Recipe.DoesNotExist:
+            return Response(
+                'Рецепт не найден',
+                status.HTTP_400_BAD_REQUEST
+            )
+        obj, created = model.objects.get_or_create(user=request.user, recipe=recipe_obj)
+        if not created:
             return Response(
                 'Вы уже совершили это действие!',
                 status=status.HTTP_400_BAD_REQUEST
             )
+        serializer = SnippetRecipeSerializer(recipe_obj, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        if request.method == 'DELETE':
-            try:
-                recipe_id = self.kwargs.get('pk')
-                recipe_obj = Recipe.objects.get(pk=recipe_id)
-            except Recipe.DoesNotExist:
-                return Response(
-                    'Рецепт не найден',
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            obj, added = model.objects.select_related(
-                'user',
-                'recipe',
-            ).get_or_create(user=request.user, recipe=recipe_obj)
-            if not added:
-                obj.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            return Response(
-                'Нечего удалять',
-                status=status.HTTP_400_BAD_REQUEST
-            )
+
+
+    def delete_object(self, request, model, recipe_id):
+        recipe_obj = get_object_or_404(Recipe, pk=recipe_id)
+        
+        try:
+            obj = model.objects.get(user=request.user, recipe=recipe_obj)
+            obj.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except model.DoesNotExist:
+            return Response('Рецепт не найден в списке.', status=status.HTTP_400_BAD_REQUEST)
+
 
     @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        permission_classes=(IsAuthenticated,),
+            detail=True,
+            methods=['POST', 'DELETE'],
+            permission_classes=[IsAuthenticated]
     )
     def shopping_cart(self, request, **kwargs):
-        return self.create_or_destroy(
-            request,
-            ShoppingCart,
-            self.kwargs.get('pk')
-        )
+        if request.method == 'POST':
+            return self.create_object(request, ShoppingCart, kwargs.get('pk'))
+        return self.delete_object(request, ShoppingCart, kwargs.get('pk'))
+
+    @action(
+            detail=True,
+            methods=['POST', 'DELETE'],
+            permission_classes=[IsAuthenticated]
+    )
+    def favorite(self, request, **kwargs):
+        if request.method == 'POST':
+            return self.create_object(request, Favorite, kwargs.get('pk'))
+        return self.delete_object(request, Favorite, kwargs.get('pk'))
+
 
     @action(
         detail=False,
@@ -205,7 +195,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def get_shopcart_file(self, request):
-        format = request.query_params.get('format', 'txt')
         ingredients = IngredientsRecipe.objects.filter(
             recipe__shoppingcart__user=self.request.user
             )
@@ -214,59 +203,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'ingredient__name',
                 'ingredient__measurement_unit',
                 ).annotate(amount=Sum('amount'))
-        
-        if format == 'txt':
-            shopcart_file = []
-            for ing in dict_value:
-                shopcart_file.append(
-                    '{name} - {amount} {measurement_unit}\n'.format(
-                        name=ing.get('ingredient__name'),
-                        amount=ing.get('amount'),
-                        measurement_unit=ing.get(
-                            'ingredient__measurement_unit'
-                        )
+        shopcart_file = []
+        for ing in dict_value:
+            shopcart_file.append(
+                '{name} - {amount} {measurement_unit}\n'.format(
+                    name=ing.get('ingredient__name'),
+                    amount=ing.get('amount'),
+                    measurement_unit=ing.get(
+                        'ingredient__measurement_unit'
                     )
                 )
-            response = HttpResponse(shopcart_file, content_type='text/plain')
-            response['Content-Disposition'] = (
-                'attachment; filename=shopping-list.txt'
             )
-        elif format == 'csv':
-            csv_data = StringIO()
-            csv_writer = csv.writer(csv_data)
-            csv_writer.writerow(
-                [
-                    'Наименование',
-                    'Кол-во',
-                    'Единица измерения товара'
-                ]
-            )
-            for ingredient in ingredients:
-                csv_writer.writerow([
-                    ingredient.get('ingredient__name'),
-                    ingredient.get('amount'),
-                    ingredient.get('ingredient__measurement_unit')
-                ])
-            response = HttpResponse(csv_data.getvalue(), content_type='text/csv')
-            response['Content-Disposition'] = (
-                'attachment; filename=shopping-list.csv'
+        response = HttpResponse(shopcart_file, content_type='text/plain')
+        response['Content-Disposition'] = (
+            'attachment; filename=shopping-list.txt'
         )
-        else:
-            return HttpResponse("Unsupported format", status=400)
-
         return response
-
-
-        
-
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        permission_classes=(IsAuthenticated,),
-    )
-    def favorite(self, request, **kwargs): 
-        return self.create_or_destroy(
-            request,
-            Favorite,
-            self.kwargs.get('pk')
-        )

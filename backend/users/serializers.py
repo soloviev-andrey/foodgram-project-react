@@ -1,8 +1,9 @@
 from django.contrib.auth.models import AnonymousUser
 from djoser.serializers import UserCreateSerializer, UserSerializer
+from recipes.constant import User
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
-from recipes.constant import User
+
 from users.models import Subscrime
 
 
