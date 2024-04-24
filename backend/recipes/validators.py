@@ -63,13 +63,18 @@ class DataValidationHelpers:
 
     @staticmethod
     def validate_tags(value):
+        tags = value.get('tags')
+        if not tags:
+            raise serializers.ValidationError(
+                'Не оставляйте поле пустым, добавьте ингредиент'
+            )
         unique_tags = set() 
         if not value:
             raise serializers.ValidationError(
                 'Нужно выбрать хотя бы 1 тег!',
                 code='required'
             )
-        for tag in value:
+        for tag in tags:
             if tag in unique_tags:
                 raise serializers.ValidationError(
                     'Не стоит добавлять один и тот же тэг!'

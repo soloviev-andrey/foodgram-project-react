@@ -114,10 +114,9 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     
 
     def validate(self, value):
-        return DataValidationHelpers.validate_ingredients(value)
-    
-    def validate_tags(self, value):
-        return DataValidationHelpers.validate_tags(value)
+        value = DataValidationHelpers.validate_tags(value)
+        value = DataValidationHelpers.validate_ingredients(value)
+        return value
 
     def create_tags(self, tags, recipe):
         for tag in tags:
