@@ -14,6 +14,25 @@ Valid_color = RegexValidator(
     message='формат записи цвета -неправельный',
     code='invalid_color'
 )
+class UniqValidate:
+    @staticmethod
+    def validate_unique_objects(value, fields_name, model_name):
+        objects = value.get(fields_name)
+        if not objects:
+            raise serializers.ValidationError(
+                f'Не оставляйте поле {fields_name} пустым, добавьте элементы'
+            )
+        uniq_objects = set()
+        for obj in objects:
+            Model = apps.get_model('recipes', model_name)
+            obj_id = obj.get('id') if model_name != 'Tag' else obj.id
+            instance = get_object_or_404(Model, id=obj_id)
+            if instance in uniq_objects:
+                raise serializers.ValidationError(
+                    'Добавлять одинаковые элементы запрещено'
+                )
+            uniq_objects.add(instance)
+        return value
 
 class BaseUnitValid(models.PositiveSmallIntegerField):
     def __init__(self, *args, **kwargs):
@@ -23,11 +42,24 @@ class BaseUnitValid(models.PositiveSmallIntegerField):
                 MIN,
                 message='мало'
             ),
-            MaxValueValidator(MAX, message='много'),
+            MaxValueValidator(
+                MAX,
+                message='много'
+            ),
         ]
         super().__init__(*args, **kwargs)
 
 class DataValidationHelpers:
+
+    @staticmethod
+    def validate_tags(value):
+        return UniqValidate.validate_unique_objects(value, 'tags', 'Tag')
+    
+    
+    @staticmethod
+    def validate_ingredients(value):
+        return UniqValidate.validate_unique_objects(value, 'ingredients', 'Ingredient')
+
     
     @staticmethod
     def verify_recipe_relation(obj, user, model):
@@ -59,48 +91,4 @@ class DataValidationHelpers:
             raise serializers.ValidationError(
                 'Пожалуйста, указывайте адекватное время готовки!'
             )
-        return value
-
-    @staticmethod
-    def validate_tags(value):
-        tags = value.get('tags')
-        if not tags:
-            raise serializers.ValidationError(
-                'Не оставляйте поле пустым, добавьте ингредиент'
-            )
-        unique_tags = set() 
-        if not value:
-            raise serializers.ValidationError(
-                'Нужно выбрать хотя бы 1 тег!',
-                code='required'
-            )
-        for tag in tags:
-            if tag in unique_tags:
-                raise serializers.ValidationError(
-                    'Не стоит добавлять один и тот же тэг!'
-                )
-            unique_tags.add(tag)
-        return value
-    
-
-    
-    @staticmethod
-    def validate_ingredients(value):
-        ingredients = value.get('ingredients')
-        if not ingredients:
-            raise serializers.ValidationError(
-                'Не оставляйте поле пустым, добавьте ингредиент'
-            )
-        uniq_ings = set()
-        for ingredient in ingredients:
-            Ingredient = apps.get_model('recipes', 'Ingredient')
-            ing = get_object_or_404(
-                Ingredient,
-                id=ingredient.get('id')
-            )
-            if ing in uniq_ings:
-                raise serializers.ValidationError(
-                    'Добавлять одинаковые элементы запрещено'
-                )
-            uniq_ings.add(ing)
         return value
