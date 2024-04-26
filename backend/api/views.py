@@ -24,6 +24,7 @@ from api.serializers import (IngredientSerializer,
 
 CustomUser = get_user_model()
 
+
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
@@ -35,12 +36,18 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     pagination_class = None
     filter_backends = [SearchFilter,]
-    
+
     def get_queryset(self):
         queryset = self.queryset
-        name = self.request.query_params.get('name', None)
-        search_method = self.request.query_params.get('search_method', 'startswith')
-    
+        name = self.request.query_params.get(
+            'name',
+            None
+        )
+        search_method = self.request.query_params.get(
+            'search_method',
+            'startswith'
+        )
+
         if name is not None:
             if search_method == 'contains':
                 queryset = queryset.filter(name__icontains=name)
@@ -51,6 +58,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
                 queryset = queryset.filter(name__istartswith=name)
         return queryset
 
+
 class CustomUserViewSet(UserViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = ExtendedUserSerializer
@@ -58,11 +66,11 @@ class CustomUserViewSet(UserViewSet):
 
     @action(
         detail=True,
-        methods=['POST','DELETE',],
+        methods=['POST', 'DELETE'],
         permission_classes=(IsAuthenticated,),
     )
     def subscribe(self, request, **kwargs):
-        
+
         sub_aut = get_object_or_404(CustomUser, id=self.kwargs.get('id'))
         if sub_aut == self.request.user:
             return Response(
@@ -100,13 +108,11 @@ class CustomUserViewSet(UserViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-
     @action(
         detail=False,
         methods=['GET'],
         permission_classes=(IsAuthenticated,),
     )
-
     def subscriptions(self, request):
         user = CustomUser.objects.all()
         data_source = user.filter(sub_fun__user=self.request.user)
@@ -122,6 +128,7 @@ class CustomUserViewSet(UserViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         return self.get_paginated_response(sub_serializer.data)
+
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
@@ -142,7 +149,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'Рецепт не найден',
                 status.HTTP_400_BAD_REQUEST
             )
-        obj, created = model.objects.get_or_create(user=request.user, recipe=recipe_obj)
+        obj, created = model.objects.get_or_create( #noqa
+            user=request.user,
+            recipe=recipe_obj
+        )
         if not created:
             return Response(
                 'Вы уже совершили это действие!',
@@ -150,8 +160,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         serializer = SnippetRecipeSerializer(recipe_obj, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
 
     def delete_object(self, request, model, recipe_id):
         recipe_obj = get_object_or_404(Recipe, pk=recipe_id)

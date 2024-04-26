@@ -1,13 +1,13 @@
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
-from .actions import RelatedObjectManager
-from recipes.models import (Ingredient, IngredientsRecipe, Recipe, Tag)
+from recipes.models import Ingredient, IngredientsRecipe, Recipe, Tag
 from recipes.validators import DataValidationHelpers
 from rest_framework import serializers
 from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
+
+from .actions import RelatedObjectManager
 from .custom_utils import (CustomRecipeFieldsSerializer,
-                            RecipeIngredientsExtendedSerializer)
+                           RecipeIngredientsExtendedSerializer)
 from .image_service import ExtendedImageField
 
 
@@ -17,12 +17,14 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = '__all__'
 
+
 class IngredientSerializer(serializers.ModelSerializer):
     '''Сериализатор ингредиентов'''
 
     class Meta:
         model = Ingredient
         fields = '__all__'
+
 
 class IngredientsRecipeSerializer(RecipeIngredientsExtendedSerializer):
     '''Сериализатор для вывода информация согласно тз'''
@@ -34,6 +36,7 @@ class IngredientsRecipeSerializer(RecipeIngredientsExtendedSerializer):
             'measurement_unit',
             'amount',
         )
+
 
 class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
     '''Сериализатор добавления ингредиентов в рецепт'''
@@ -55,15 +58,19 @@ class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
             'amount',
         )
 
-class RecipeSerializer(CustomRecipeFieldsSerializer, serializers.ModelSerializer):
+
+class RecipeSerializer(
+    CustomRecipeFieldsSerializer,
+    serializers.ModelSerializer
+):
     '''Сериализатор рецепта'''
     ingredients = IngredientsRecipeSerializer(
         many=True,
-        source = 'ingredients_recipe'
+        source='ingredients_recipe'
     )
     image = ExtendedImageField(
         valid_formats=['jpg', 'jpeg', 'png'],
-        max_size=1024*1024
+        max_size=1024 * 1024
     )
     tags = TagSerializer(many=True)
     author = ExtendedUserSerializer(read_only=True)
@@ -83,7 +90,9 @@ class RecipeSerializer(CustomRecipeFieldsSerializer, serializers.ModelSerializer
             'is_in_shopping_cart',
         )
 
+
 class SnippetRecipeSerializer(RecipeSerializer):
+
     class Meta(RecipeSerializer.Meta):
         fields = (
             'id',
@@ -91,6 +100,7 @@ class SnippetRecipeSerializer(RecipeSerializer):
             'image',
             'cooking_time',
         )
+
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     '''Сериализатор добавления и обновления рецепта'''
@@ -102,7 +112,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     ingredients = CreateIngredientsRecipeSerializer(many=True)
     image = ExtendedImageField(
         valid_formats=['jpg', 'jpeg', 'png'],
-        max_size=1024*1024
+        max_size=1024 * 1024
     )
     cooking_time = serializers.IntegerField(
         validators=[
@@ -117,7 +127,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         author = self.context.get('request').user
-        tags = validated_data.pop('tags')
+        tags = validated_data.pop('tags') # noqa
         ingredients = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(**validated_data, author=author)
         RelatedObjectManager.create_ingredients(ingredients, recipe)
@@ -132,9 +142,8 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             if field in validated_data:
                 RelatedObjectManager.clear_related_fields(instance, field)
                 create_method(validated_data.pop(field), instance)
-
         return super().update(instance, validated_data)
-    
+
     def to_representation(self, instance):
         serializer = RecipeSerializer(instance, context=self.context)
         return serializer.data
@@ -151,6 +160,7 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             'text',
             'cooking_time',
         )
+
 
 class SubscrimeSerializer(ExtendedUserSerializer):
     '''Сериализатор для подписки пользователя'''
@@ -180,12 +190,12 @@ class SubscrimeSerializer(ExtendedUserSerializer):
 
     def get_recipes_count(self, instance):
         return instance.recipes.count()
-    
+
     def get_is_subscribed(self, instance):
         user_request = self.context.get('request')
         if user_request.user.is_anonymous:
             return False
-        
+
         user_subscribed = Subscrime.objects.filter(
             user=user_request.user,
             author=instance,

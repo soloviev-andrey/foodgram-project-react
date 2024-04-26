@@ -13,15 +13,15 @@ class RecipeFilter(filters.FilterSet):
         queryset=Tag.objects.all(),
     )
     is_favorited = filters.BooleanFilter(method='filter_is_favorited')
-    is_in_shopping_cart = filters.BooleanFilter(method='filter_is_in_shopping_cart')
-
+    is_in_shopping_cart = filters.BooleanFilter(
+        method='filter_is_in_shopping_cart'
+    )
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
-        favorite=apps.get_model('recipes', 'Favorite')
+        favorite = apps.get_model('recipes', 'Favorite')
         if isinstance(user, AnonymousUser):
             return queryset
-        
         return queryset.annotate(
             Favorite=Exists(
                 favorite.objects.filter(
@@ -36,7 +36,7 @@ class RecipeFilter(filters.FilterSet):
         shopcart = apps.get_model('recipes', 'ShoppingCart')
         if isinstance(user, AnonymousUser):
             return queryset
-        
+
         return queryset.annotate(
             ShopCart=Exists(
                 shopcart.objects.filter(
@@ -46,7 +46,6 @@ class RecipeFilter(filters.FilterSet):
             )
         ).filter(ShopCart=value)
 
-
     class Meta:
         model = Recipe
         fields = (
@@ -55,4 +54,3 @@ class RecipeFilter(filters.FilterSet):
             'is_favorited',
             'is_in_shopping_cart',
         )
-

@@ -125,12 +125,12 @@ class ListEntryModel(models.Model):
     class Meta:
         abstract = True
 
+
 class Favorite(ListEntryModel):
     '''Модель для Избранное'''
     class Meta:
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранное'
-        
 
     def __str__(self):
         return f'Рецепт {self.recipe} в избранном у пользователя {self.user}'
@@ -148,6 +148,7 @@ class ShoppingCart(ListEntryModel):
             f'{self.recipe} у пользователя {self.user} в списке покупок'
         )
 
+
 class RecipeTag(models.Model):
     '''Промежудочная модель связи Recipe-Tag'''
     tag = models.ForeignKey(
@@ -158,6 +159,8 @@ class RecipeTag(models.Model):
         Recipe,
         on_delete=models.CASCADE,
     )
+
+
 class IngredientsRecipe(models.Model):
     '''Промежуточную модель связи Ingredients-Recipe'''
     recipe = models.ForeignKey(

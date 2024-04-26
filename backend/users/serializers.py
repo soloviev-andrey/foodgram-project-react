@@ -22,8 +22,7 @@ class ExtendedUserSerializer(UserSerializer):
         request = serializer.context.get('request')
         if request and request.user.is_staff:
             try:
-                obj = Subscrime.objects.get(
-                    user=request.user,
+                obj = Subscrime.objects.get(  # noqa
                     author=target
                 )
                 return True
@@ -44,6 +43,7 @@ class ExtendedUserSerializer(UserSerializer):
             'last_name',
             'is_subscribed',
         )
+
 
 class ExtendedAddUserSerializer(UserCreateSerializer):
     '''Сериализатор регистрации и создания пользователя'''

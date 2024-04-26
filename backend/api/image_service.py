@@ -19,21 +19,23 @@ class ExtendedImageField(serializers.ImageField):
                 format, imgstr = data.split(';base64,')
                 ext = format.split('/')[-1]
                 if ext not in self.valid_formats:
-                    raise serializers.ValidationError('Недопустимый формат файла')
-                
-                if self.max_size is not None and len(imgstr) > self.max_size:
-                    raise serializers.ValidationError('Файл слишком большой')
+                    raise serializers.ValidationError(
+                        'Недопустимый формат файла'
+                    )
 
+                if self.max_size is not None and len(imgstr) > self.max_size:
+                    raise serializers.ValidationError(
+                        'Файл слишком большой'
+                    )
                 data = ContentFile(
                     base64.b64decode(imgstr),
                     name='temp.' + ext
                 )
-        except(
-            TypeError,
-            ValueError,
-            AttributeError,
-            UnicodeDecodeError,
-        ) as e:
-            raise serializers.ValidationError('Неподдерживаемый формат фото или рисунка')
-        
+        except (
+            TypeError
+        ):
+            raise serializers.ValidationError(
+                'Неподдерживаемый формат фото или рисунка'
+            )
+
         return super().to_internal_value(data)

@@ -5,6 +5,7 @@ from django.db import models
 MAX_LEN = 150
 EMAIL_LEN = 254
 
+
 class CustomUser(AbstractUser):
     '''Модель Пользователя'''
     username = models.CharField(
@@ -41,6 +42,7 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
+
 
 class Subscrime(models.Model):
     '''Модель подписки'''

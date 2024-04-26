@@ -11,13 +11,13 @@ class RecipeIngredientsExtendedSerializer(serializers.ModelSerializer):
 
     def get_id(self, instance):
         return instance.ingredient.id
-    
+
     def get_name(self, instance):
         return instance.ingredient.name
-    
+
     def get_measurement_unit(self, instance):
         return instance.ingredient.measurement_unit
-  
+
 
 class CustomRecipeFieldsSerializer(serializers.Serializer):
     is_favorited = serializers.SerializerMethodField()
