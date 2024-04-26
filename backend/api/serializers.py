@@ -1,14 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
-from django.shortcuts import get_object_or_404
-from .actions import CreateSerializer
-from recipes.models import (Ingredient, IngredientsRecipe, Recipe, RecipeTag,
-                            Tag)
+from .actions import RelatedObjectManager
+from recipes.models import (Ingredient, IngredientsRecipe, Recipe, Tag)
 from recipes.validators import DataValidationHelpers
 from rest_framework import serializers
 from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
-
 from .custom_utils import (CustomRecipeFieldsSerializer,
                             RecipeIngredientsExtendedSerializer)
 from .image_service import ExtendedImageField
@@ -119,30 +116,25 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        ingredients = validated_data.pop('ingredients')
-        tags = validated_data.pop('tags')
         author = self.context.get('request').user
-        
-        try:
-            recipe = Recipe.objects.create(**validated_data, author=author)
-            CreateSerializer.create_ingredients(ingredients, recipe)
-            return recipe
-        except IntegrityError:
-            raise serializers.ValidationError(
-                'Такой рецепт уже существует!'
-            )
+        tags = validated_data.pop('tags')
+        ingredients = validated_data.pop('ingredients')
+        recipe = Recipe.objects.create(**validated_data, author=author)
+        RelatedObjectManager.create_ingredients(ingredients, recipe)
+        return recipe
 
     def update(self, instance, validated_data):
-        if 'ingredients' in validated_data:
-            ingredients = validated_data.pop('ingredients')
-            instance.ingredients.clear()
-            CreateSerializer.create_ingredients(ingredients, instance)
-        if 'tags' in validated_data:
-            tags = validated_data.pop('tags')
-            instance.tags.clear()
-            CreateSerializer.create_tags(tags, instance)
-        return super().update(instance, validated_data)
+        recipe_fields = {
+            'tags': RelatedObjectManager.create_tags,
+            'ingredients': RelatedObjectManager.create_ingredients,
+        }
+        for field, create_method in recipe_fields.items():
+            if field in validated_data:
+                RelatedObjectManager.clear_related_fields(instance, field)
+                create_method(validated_data.pop(field), instance)
 
+        return super().update(instance, validated_data)
+    
     def to_representation(self, instance):
         serializer = RecipeSerializer(instance, context=self.context)
         return serializer.data
