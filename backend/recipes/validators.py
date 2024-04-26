@@ -4,9 +4,6 @@ from django.core.validators import (MaxValueValidator, MinValueValidator,
 from django.db import models
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
-
-
-
 from .constant import MAX, MIN
 
 Valid_color = RegexValidator(
@@ -92,3 +89,9 @@ class DataValidationHelpers:
                 'Пожалуйста, указывайте адекватное время готовки!'
             )
         return value
+
+    @staticmethod
+    def create_relationships(self, items, model, recipe, **kwargs):
+        for item in items:
+            model.objects.create(recipe=recipe, **item, **kwargs)
+

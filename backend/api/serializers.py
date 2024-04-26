@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
+from .actions import CreateSerializer
 from recipes.models import (Ingredient, IngredientsRecipe, Recipe, RecipeTag,
                             Tag)
 from recipes.validators import DataValidationHelpers
@@ -111,27 +112,11 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             DataValidationHelpers.validate_cooking_time
         ]
     )
-    
 
     def validate(self, value):
         value = DataValidationHelpers.validate_tags(value)
         value = DataValidationHelpers.validate_ingredients(value)
         return value
-
-    def create_tags(self, tags, recipe):
-        for tag in tags:
-            RecipeTag.objects.create(
-                tag_id=tag.id,
-                recipe=recipe
-            )
-
-    def create_ingredients(self, ingredients, recipe):
-        for ingredient in ingredients:
-            IngredientsRecipe.objects.create(
-                ingredient_id=ingredient.get('id'),
-                amount=ingredient.get('amount'),
-                recipe=recipe
-            )
 
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
@@ -140,24 +125,22 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         
         try:
             recipe = Recipe.objects.create(**validated_data, author=author)
-            self.create_ingredients(ingredients, recipe)
+            CreateSerializer.create_ingredients(ingredients, recipe)
             return recipe
         except IntegrityError:
             raise serializers.ValidationError(
                 'Такой рецепт уже существует!'
             )
 
-
     def update(self, instance, validated_data):
-        if 'tags' not in validated_data:
-            raise serializers.ValidationError(
-                'Поле "tags" обязательно для обновления рецепта.'
-            )
-        tags = validated_data.pop('tags')
-        ingredients = validated_data.pop('ingredients', [])
-        IngredientsRecipe.objects.filter(recipe=instance).delete()
-        self.create_ingredients(ingredients, instance)
-        self.create_tags(tags, instance)
+        if 'ingredients' in validated_data:
+            ingredients = validated_data.pop('ingredients')
+            instance.ingredients.clear()
+            CreateSerializer.create_ingredients(ingredients, instance)
+        if 'tags' in validated_data:
+            tags = validated_data.pop('tags')
+            instance.tags.clear()
+            CreateSerializer.create_tags(tags, instance)
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
@@ -216,6 +199,7 @@ class SubscrimeSerializer(ExtendedUserSerializer):
             author=instance,
         ).exists()
         return user_subscribed
+
     class Meta:
         model = get_user_model()
         fields = (

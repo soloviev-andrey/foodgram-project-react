@@ -36,5 +36,3 @@ class CustomRecipeFieldsSerializer(serializers.Serializer):
             self.context['request'].user,
             ShoppingCart
         )
-
-
