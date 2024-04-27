@@ -117,10 +117,10 @@ class CustomUserViewSet(UserViewSet):
         user = CustomUser.objects.all()
         data_source = user.filter(sub_fun__user=self.request.user)
         sub_serializer = SubscrimeSerializer(
-                self.paginate_queryset(data_source),
-                context={'request': request},
-                many=True
-            )
+            self.paginate_queryset(data_source),
+            context={'request': request},
+            many=True,
+        )
 
         if not data_source.exists():
             return Response(
@@ -149,7 +149,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'Рецепт не найден',
                 status.HTTP_400_BAD_REQUEST
             )
-        obj, created = model.objects.get_or_create( #noqa
+        obj, created = model.objects.get_or_create(  # noqa
             user=request.user,
             recipe=recipe_obj
         )
@@ -158,38 +158,40 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'Вы уже совершили это действие!',
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serializer = SnippetRecipeSerializer(recipe_obj, context={'request': request})
+        serializer = SnippetRecipeSerializer(
+            recipe_obj,
+            context={'request': request}
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete_object(self, request, model, recipe_id):
         recipe_obj = get_object_or_404(Recipe, pk=recipe_id)
-        
+
         try:
             obj = model.objects.get(user=request.user, recipe=recipe_obj)
             obj.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except model.DoesNotExist:
-            return Response('Рецепт не найден в списке.', status=status.HTTP_400_BAD_REQUEST)
-
+            return Response(
+                'Рецепт не найден в списке.',
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     @action(
-            detail=True,
-            methods=['POST', 'DELETE'],
-            permission_classes=[IsAuthenticated]
+        detail=True,
+        methods=['POST', 'DELETE'],
+        permission_classes=[IsAuthenticated],
     )
     def shopping_cart(self, request, **kwargs):
         return self._process_action(request, ShoppingCart, kwargs.get('pk'))
 
-
     @action(
-            detail=True,
-            methods=['POST', 'DELETE'],
-            permission_classes=[IsAuthenticated]
+        detail=True,
+        methods=['POST', 'DELETE'],
+        permission_classes=[IsAuthenticated]
     )
-    
     def favorite(self, request, **kwargs):
         return self._process_action(request, Favorite, kwargs.get('pk'))
-
 
     @action(
         detail=False,
@@ -201,12 +203,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         items_que = IngredientsRecipe.objects.all()
         ingredients = items_que.filter(
             recipe__shoppingcart__user=self.request.user
-            )
+        )
 
         dict_value = ingredients.values(
-                'ingredient__name',
-                'ingredient__measurement_unit',
-                )
+            'ingredient__name',
+            'ingredient__measurement_unit',
+        )
         amount = dict_value.annotate(amount=Sum('amount'))
         shopcart_file = []
         for ing in amount:
@@ -225,7 +227,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         return response
 
-
     def _process_action(self, request, model_class, pk):
-        action = self.create_object if request.method == 'POST' else self.delete_object
+        action = (
+            self.create_object
+            if request.method == 'POST'
+            else self.delete_object
+        )
         return action(request, model_class, pk)
