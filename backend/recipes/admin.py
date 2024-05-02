@@ -2,13 +2,19 @@ from django.contrib import admin
 
 from .models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
 
+admin.site.empty_value_display = 'Не задано'
 
-class TagAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+
+class BaseFieldsAdmin(admin.ModelAdmin):
     search_fields = ('name',)
+    list_display_links = ('name',)
 
 
-class IngredientAdmin(admin.ModelAdmin):
+class TagAdmin(BaseFieldsAdmin):
+    list_display = ('name', 'color', 'slug')
+
+
+class IngredientAdmin(BaseFieldsAdmin):
     list_display = (
         'name',
         'measurement_unit'
@@ -16,7 +22,7 @@ class IngredientAdmin(admin.ModelAdmin):
     list_filter = ('name',)
 
 
-class RecipeAdmin(admin.ModelAdmin):
+class RecipeAdmin(BaseFieldsAdmin):
     list_display = ('name', 'author', 'total_count')
     list_filter = ('author', 'name', 'tags')
 
