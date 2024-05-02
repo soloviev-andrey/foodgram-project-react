@@ -1,10 +1,11 @@
+from collections import defaultdict
+
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from api.pagination import LimitPageNumberPagination
 from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import status, viewsets
@@ -17,6 +18,7 @@ from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
 
 from api.filters import RecipeFilter
+from api.pagination import LimitPageNumberPagination
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import (IngredientSerializer,
                              RecipeCreateUpdateSerializer, RecipeSerializer,
@@ -145,23 +147,25 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def create_object(self, request, model, recipe_id):
         try:
-            recipe_obj = Recipe.objects.get(pk=recipe_id)
+            recipe_unit = Recipe.objects.get(pk=recipe_id)
         except Recipe.DoesNotExist:
             return Response(
                 'Рецепт не найден',
                 status.HTTP_400_BAD_REQUEST
             )
-        obj, created = model.objects.get_or_create(  # noqa
+        existing_obj = model.objects.filter(
             user=request.user,
-            recipe=recipe_obj
-        )
-        if not created:
+            recipe=recipe_unit
+        ).first()
+        if existing_obj:
             return Response(
                 'Вы уже совершили это действие!',
                 status=status.HTTP_400_BAD_REQUEST
             )
+        new_obj = model(user=request.user, recipe=recipe_unit)
+        new_obj.save()
         serializer = SnippetRecipeSerializer(
-            recipe_obj,
+            recipe_unit,
             context={'request': request}
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -178,6 +182,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'Рецепт не найден в списке.',
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    def _process_action(self, request, model_class, pk):
+        action = (
+            self.create_object
+            if request.method == 'POST'
+            else self.delete_object
+        )
+        return action(request, model_class, pk)
 
     @action(
         detail=True,
@@ -202,37 +214,34 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def get_generate_shopcart_file(self, request):
-        items_que = IngredientsRecipe.objects.all()
-        ingredients = items_que.filter(
+        ingredients = IngredientsRecipe.objects.filter(
             recipe__shoppingcart__user=self.request.user
         )
-
+        unique_ingredients = defaultdict(lambda: {'amount': 0, 'unit': ''})
         dict_value = ingredients.values(
             'ingredient__name',
             'ingredient__measurement_unit',
         )
         amount = dict_value.annotate(amount=Sum('amount'))
-        shopcart_file = []
-        for ing in amount:
-            shopcart_file.append(
-                '{name} - {amount} {measurement_unit}\n'.format(
-                    name=ing.get('ingredient__name'),
-                    amount=ing.get('amount'),
-                    measurement_unit=ing.get(
-                        'ingredient__measurement_unit'
-                    )
-                )
-            )
-        response = HttpResponse(shopcart_file, content_type='text/plain')
-        response['Content-Disposition'] = (
-            'attachment; filename=shopping-list.txt'
-        )
-        return response
+        for i in amount:
+            name = i['ingredient__name']
+            amount = i['amount']
+            measurement_unit = i['ingredient__measurement_unit']
+            unique_ingredients[name]['amount'] += amount
+            unique_ingredients[name]['unit'] = measurement_unit
 
-    def _process_action(self, request, model_class, pk):
-        action = (
-            self.create_object
-            if request.method == 'POST'
-            else self.delete_object
+        shopcart_file_content = '\n'.join(
+            [
+                f'{name} - {data["amount"]} {data["unit"]}'
+                for name, data in unique_ingredients.items()
+            ]
         )
-        return action(request, model_class, pk)
+        return self._create_download_response(
+            shopcart_file_content,
+            filename='shopping-list.txt'
+        )
+
+    def _create_download_response(self, content, filename):
+        response = HttpResponse(content, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
