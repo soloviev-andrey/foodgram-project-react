@@ -28,27 +28,39 @@ Foodgram - это платформа, предназначенная для лю
 Андрей Соловьев
 
 ## Запуск проекта
-1. **Клонирование репозитория**: 
+1. **Клонирование репозитория:** 
    - Сначала необходимо склонировать репозиторий с проектом на свой компьютер. Для этого используйте команду git clone git@github.com:soloviev-andrey/foodgram-project-react.git.
    - Перейдите в директорию проекта с помощью команды cd foodgram-project-react.
 
-2. **Настройка переменных окружения**:
-   - Создайте файл .env в корне проекта и добавьте необходимые переменные окружения. Примеры переменных можно найти в файле .env.example
+2. **Настройка переменных окружения:**
+   - Создайте файл .env в корне проекта и добавьте необходимые переменные окружения. Примеры переменных можно найти в файле .env.example.
 
-3. **Запуск Docker Compose**:
-   - Запустите Docker Compose в production режиме с помощью команды docker-compose -f docker-compose.production.yml up. Это запустит все необходимые контейнеры для работы проекта.
+3. **Запуск контейнеров с помощью файла docker-compose.production.yml:**
+    
+    docker compose -f docker-compose.production.yml up
+    
 
-4. **Выполнение миграций и сборка статики**:
-   - Выполните миграции для базы данных с помощью команды sudo docker-compose -f docker-compose.production.yml exec backend python manage.py migrate.
-   - Соберите статику с помощью команды sudo docker-compose -f docker-compose.production.yml exec backend python manage.py collectstatic.
-   - Скопируйте собранную статику в нужную директорию с помощью команды sudo docker-compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/.
+4. **Сборка файлов статики и копирование их:**
+    
+    docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
+    docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/
+    
 
-5. **Создание суперпользователя**:
+5. **Выполнение миграций:**
+    
+    docker compose -f docker-compose.production.yml exec backend python manage.py migrate
+    
+
+6. **Загрузка данных из файла ingredients.csv:**
+    
+    docker compose -f docker-compose.production.yml exec backend python manage.py load_data data/ingredients.csv
+    
+
+7. **Создание суперпользователя:**
    - Создайте суперпользователя для доступа к админ-панели с помощью команды sudo docker-compose -f docker-compose.production.yml exec backend python manage.py createsuperuser.
 
-6. **Проверка работоспособности**:
+8. **Проверка работоспособности:**
    - Откройте ваш браузер и перейдите по адресу http://localhost/. Теперь вы можете использовать функционал проекта Foodgram.
-
 
 ## Благодарности
 Спасибо за интерес к проекту Foodgram! Если у вас есть вопросы или предложения, не стесняйтесь связаться со мной.

@@ -147,7 +147,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def create_object(self, request, model, recipe_id):
         try:
-            recipe_unit = Recipe.objects.get(pk=recipe_id)
+            recipe_unit = Recipe.objects.get(id=recipe_id)
         except Recipe.DoesNotExist:
             return Response(
                 'Рецепт не найден',
@@ -171,7 +171,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete_object(self, request, model, recipe_id):
-        recipe_obj = get_object_or_404(Recipe, pk=recipe_id)
+        recipe_obj = get_object_or_404(Recipe, id=recipe_id)
 
         try:
             obj = model.objects.get(user=request.user, recipe=recipe_obj)
@@ -183,29 +183,29 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    def _process_action(self, request, model_class, pk):
+    def _process_action(self, request, model_class, id):
         action = (
             self.create_object
             if request.method == 'POST'
             else self.delete_object
         )
-        return action(request, model_class, pk)
+        return action(request, model_class, id)
 
     @action(
         detail=True,
         methods=['POST', 'DELETE'],
         permission_classes=[IsAuthenticated],
     )
-    def shopping_cart(self, request, **kwargs):
-        return self._process_action(request, ShoppingCart, kwargs.get('pk'))
+    def shopping_cart(self, request, pk=None):
+        return self._process_action(request, ShoppingCart, pk)
 
     @action(
         detail=True,
         methods=['POST', 'DELETE'],
         permission_classes=[IsAuthenticated]
     )
-    def favorite(self, request, **kwargs):
-        return self._process_action(request, Favorite, kwargs.get('pk'))
+    def favorite(self, request, pk=None):
+        return self._process_action(request, Favorite, pk)
 
     @action(
         detail=False,
