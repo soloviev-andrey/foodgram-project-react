@@ -1,8 +1,22 @@
-from django.apps import apps
-from django.contrib.auth.models import AnonymousUser
-from django.db.models import Exists, OuterRef
 from django_filters import rest_framework as filters
 from recipes.models import Recipe, Tag
+from rest_framework.filters import BaseFilterBackend
+
+from .actions import common_filter_decorator
+
+
+class IngredientsFilter(BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        name = request.query_params.get('name', None)
+        search_method = request.query_params.get('search_method', 'startswith')
+
+        if name:
+            filter_kwargs = {
+                f'name__i{search_method}': name
+            }
+            queryset = queryset.filter(**filter_kwargs)
+
+        return queryset
 
 
 class RecipeFilter(filters.FilterSet):
@@ -17,34 +31,13 @@ class RecipeFilter(filters.FilterSet):
         method='filter_is_in_shopping_cart'
     )
 
+    @common_filter_decorator('Favorite')
     def filter_is_favorited(self, queryset, name, value):
-        user = self.request.user
-        favorite = apps.get_model('recipes', 'Favorite')
-        if isinstance(user, AnonymousUser):
-            return queryset
-        return queryset.annotate(
-            Favorite=Exists(
-                favorite.objects.filter(
-                    user=user,
-                    recipe_id=OuterRef('id')
-                )
-            )
-        ).filter(Favorite=value)
+        return queryset
 
+    @common_filter_decorator('ShoppingCart')
     def filter_is_in_shopping_cart(self, queryset, name, value):
-        user = self.request.user
-        shopcart = apps.get_model('recipes', 'ShoppingCart')
-        if isinstance(user, AnonymousUser):
-            return queryset
-
-        return queryset.annotate(
-            ShopCart=Exists(
-                shopcart.objects.filter(
-                    user=user,
-                    recipe_id=OuterRef('id')
-                )
-            )
-        ).filter(ShopCart=value)
+        return queryset
 
     class Meta:
         model = Recipe

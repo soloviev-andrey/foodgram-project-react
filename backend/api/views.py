@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
+from api.actions import _process_action
 from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import status, viewsets
@@ -17,7 +18,7 @@ from rest_framework.response import Response
 from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
 
-from api.filters import RecipeFilter
+from api.filters import IngredientsFilter, RecipeFilter
 from api.pagination import LimitPageNumberPagination
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import (IngredientSerializer,
@@ -38,29 +39,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
-    filter_backends = [SearchFilter,]
-
-    def get_queryset(self):
-        queryset = self.queryset
-        name = self.request.query_params.get(
-            'name',
-            None
-        )
-        search_method = self.request.query_params.get(
-            'search_method',
-            'startswith'
-        )
-
-        if name is not None:
-            if search_method == 'contains':
-                queryset = queryset.filter(name__icontains=name)
-            elif search_method == 'endswith':
-                queryset = queryset.filter(name__iendswith=name)
-            else:
-                # По умолчанию используем istartswith
-                queryset = queryset.filter(name__istartswith=name)
-        return queryset
-
+    filter_backends = [IngredientsFilter]
 
 class CustomUserViewSet(UserViewSet):
     queryset = CustomUser.objects.all()
@@ -183,29 +162,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    def _process_action(self, request, model_class, id):
-        action = (
-            self.create_object
-            if request.method == 'POST'
-            else self.delete_object
-        )
-        return action(request, model_class, id)
-
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        permission_classes=[IsAuthenticated],
-    )
+    @_process_action(ShoppingCart)
     def shopping_cart(self, request, pk=None):
-        return self._process_action(request, ShoppingCart, pk)
+        pass
 
-    @action(
-        detail=True,
-        methods=['POST', 'DELETE'],
-        permission_classes=[IsAuthenticated]
-    )
+    @_process_action(Favorite)
     def favorite(self, request, pk=None):
-        return self._process_action(request, Favorite, pk)
+        pass
 
     @action(
         detail=False,
@@ -217,7 +180,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ingredients = IngredientsRecipe.objects.filter(
             recipe__shoppingcart__user=self.request.user
         )
-        unique_ingredients = defaultdict(lambda: {'amount': 0, 'unit': ''})
+        uniq_ingredients = defaultdict(lambda: {'amount': 0, 'unit': ''})
         dict_value = ingredients.values(
             'ingredient__name',
             'ingredient__measurement_unit',
@@ -227,13 +190,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
             name = i['ingredient__name']
             amount = i['amount']
             measurement_unit = i['ingredient__measurement_unit']
-            unique_ingredients[name]['amount'] += amount
-            unique_ingredients[name]['unit'] = measurement_unit
+            uniq_ingredients[name]['amount'] += amount
+            uniq_ingredients[name]['unit'] = measurement_unit
 
         shopcart_file_content = '\n'.join(
             [
                 f'{name} - {data["amount"]} {data["unit"]}'
-                for name, data in unique_ingredients.items()
+                for name, data in uniq_ingredients.items()
             ]
         )
         return self._create_download_response(
