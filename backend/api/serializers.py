@@ -3,7 +3,6 @@ from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from recipes.validators import DataValidationHelpers
 from rest_framework import serializers
-from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
 
 from .decorators import customrecipefields_decorator, get_field_decorator
@@ -189,7 +188,6 @@ class SubscrimeSerializer(ExtendedUserSerializer):
     '''Сериализатор для подписки пользователя'''
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
-    is_subscribed = serializers.SerializerMethodField()
 
     def get_recipes(self, instance):
         request = self.context.get('request')
@@ -209,15 +207,6 @@ class SubscrimeSerializer(ExtendedUserSerializer):
 
     def get_recipes_count(self, instance):
         return instance.recipes.count()
-
-    def get_is_subscribed(self, instance):
-        request = self.context.get('request')
-        if request.user.is_anonymous:
-            return False
-        return Subscrime.objects.filter(
-            user=request.user,
-            author=instance
-        ).exists()
 
     class Meta:
         model = get_user_model()
