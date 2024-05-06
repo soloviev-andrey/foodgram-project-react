@@ -1,6 +1,7 @@
 from recipes.models import Favorite, ShoppingCart
-from recipes.validators import DataValidationHelpers
 from rest_framework import serializers
+
+from .decorators import customrecipefields_decorator
 
 
 class RecipeIngredientsExtendedSerializer(serializers.ModelSerializer):
@@ -23,16 +24,10 @@ class CustomRecipeFieldsSerializer(serializers.Serializer):
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
 
+    @customrecipefields_decorator(Favorite)
     def get_is_favorited(self, instance):
-        return DataValidationHelpers.verify_recipe_relation(
-            instance,
-            self.context['request'].user,
-            Favorite
-        )
+        pass
 
+    @customrecipefields_decorator(ShoppingCart)
     def get_is_in_shopping_cart(self, instance):
-        return DataValidationHelpers.verify_recipe_relation(
-            instance,
-            self.context['request'].user,
-            ShoppingCart
-        )
+        pass

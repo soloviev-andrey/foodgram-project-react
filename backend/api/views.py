@@ -6,12 +6,11 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from api.actions import _process_action
+from .decorators import sf_action_decorator
 from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.filters import SearchFilter
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
@@ -40,6 +39,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     pagination_class = None
     filter_backends = [IngredientsFilter]
+
 
 class CustomUserViewSet(UserViewSet):
     queryset = CustomUser.objects.all()
@@ -162,11 +162,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    @_process_action(ShoppingCart)
+    @sf_action_decorator(ShoppingCart)
     def shopping_cart(self, request, pk=None):
         pass
 
-    @_process_action(Favorite)
+    @sf_action_decorator(Favorite)
     def favorite(self, request, pk=None):
         pass
 

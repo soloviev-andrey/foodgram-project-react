@@ -5,10 +5,24 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Exists, OuterRef
 from django.contrib.auth.models import AnonymousUser
+from recipes.validators import DataValidationHelpers
 from django.apps import apps
 
 
-def common_filter_decorator(model_name):
+def customrecipefields_decorator(model):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, instance):
+            return DataValidationHelpers.verify_recipe_relation(
+                instance,
+                self.context['request'].user,
+                model
+            )
+        return wrapper
+    return decorator
+
+
+def filter_custom_decorator(model_name):
     def decorator(func):
         def wrapper(self, queryset, name, value):
             user = self.request.user
@@ -27,7 +41,7 @@ def common_filter_decorator(model_name):
     return decorator
 
 
-def _process_action(
+def sf_action_decorator(
         model_class,
         detail=True,
         methods=['POST', 'DELETE'],

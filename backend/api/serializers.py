@@ -5,7 +5,7 @@ from rest_framework import serializers
 from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
 
-from .actions import RelatedObjectManager
+from .decorators import RelatedObjectManager
 from .custom_utils import (CustomRecipeFieldsSerializer,
                            RecipeIngredientsExtendedSerializer)
 from .image_service import ExtendedImageField

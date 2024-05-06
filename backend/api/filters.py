@@ -2,7 +2,7 @@ from django_filters import rest_framework as filters
 from recipes.models import Recipe, Tag
 from rest_framework.filters import BaseFilterBackend
 
-from .actions import common_filter_decorator
+from .decorators import filter_custom_decorator
 
 
 class IngredientsFilter(BaseFilterBackend):
@@ -31,11 +31,11 @@ class RecipeFilter(filters.FilterSet):
         method='filter_is_in_shopping_cart'
     )
 
-    @common_filter_decorator('Favorite')
+    @filter_custom_decorator('Favorite')
     def filter_is_favorited(self, queryset, name, value):
         return queryset
 
-    @common_filter_decorator('ShoppingCart')
+    @filter_custom_decorator('ShoppingCart')
     def filter_is_in_shopping_cart(self, queryset, name, value):
         return queryset
 
