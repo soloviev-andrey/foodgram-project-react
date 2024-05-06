@@ -9,6 +9,24 @@ from recipes.validators import DataValidationHelpers
 from django.apps import apps
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
+
+
+def user_auth_decorator(view_func):
+    def handler(self, instance):
+        if isinstance(instance, AnonymousUser):
+            raise AuthenticationFailed('Неавторизованный пользователь')
+        return view_func(self, instance)
+    return handler
+
+
+def subscribed_decorator(view_func):
+    def handler(self, target):
+        return (
+            self.context['request'].user.is_staff
+            and target.subscrime.exists()
+        )
+    return handler
 
 
 def get_field_decorator(field_name):

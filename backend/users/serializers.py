@@ -1,37 +1,20 @@
-from django.contrib.auth.models import AnonymousUser
 from djoser.serializers import UserCreateSerializer, UserSerializer
+from api.decorators import subscribed_decorator, user_auth_decorator
 from recipes.constant import User
 from rest_framework import serializers
-from rest_framework.exceptions import AuthenticationFailed
-
-from users.models import Subscrime
 
 
 class ExtendedUserSerializer(UserSerializer):
     '''Сериализатор отображения пользователя'''
     is_subscribed = serializers.SerializerMethodField()
 
+    @user_auth_decorator
     def to_representation(self, instance):
-        if isinstance(instance, AnonymousUser):
-            raise AuthenticationFailed(
-                'Неавторизованный пользователь'
-            )
         return super().to_representation(instance)
 
-    def get_is_subscribed(serializer, target):
-        request = serializer.context.get('request')
-        if request and request.user.is_staff:
-            try:
-                obj = Subscrime.objects.get(  # noqa
-                    author=target
-                )
-                return True
-            except Subscrime.DoesNotExist:
-                return False
-            except Exception as e:
-                print(f'Что-то пошло не так: {e}')
-
-        return False
+    @subscribed_decorator
+    def get_is_subscribed(self, target: User):
+        pass
 
     class Meta:
         model = User

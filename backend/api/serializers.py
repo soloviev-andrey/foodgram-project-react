@@ -192,22 +192,18 @@ class SubscrimeSerializer(ExtendedUserSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
     def get_recipes(self, instance):
+        request = self.context.get('request')
+        limit = int(request.query_params.get('recipes_limit', 0))
 
-        recipes_request = self.context.get('request')
-        limit_term = recipes_request.query_params.get('recipes_limit', None)
-        recipes = instance.recipes.all()
-
-        if limit_term:
-            try:
-                limit = int(limit_term)
-                if limit > 0:
-                    recipes = recipes[:limit]
-            except ValueError:
-                pass
+        recipes = (
+            instance.recipes.all()[:limit]
+            if limit > 0
+            else instance.recipes.all()
+        )
         serialized_recipes = SnippetRecipeSerializer(
             recipes,
             many=True,
-            context={'request': recipes_request}
+            context={'request': request}
         )
         return serialized_recipes.data
 
@@ -215,15 +211,13 @@ class SubscrimeSerializer(ExtendedUserSerializer):
         return instance.recipes.count()
 
     def get_is_subscribed(self, instance):
-        user_request = self.context.get('request')
-        if user_request.user.is_anonymous:
+        request = self.context.get('request')
+        if request.user.is_anonymous:
             return False
-
-        user_subscribed = Subscrime.objects.filter(
-            user=user_request.user,
-            author=instance,
+        return Subscrime.objects.filter(
+            user=request.user,
+            author=instance
         ).exists()
-        return user_subscribed
 
     class Meta:
         model = get_user_model()
