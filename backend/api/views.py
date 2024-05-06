@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from .decorators import sf_action_decorator
+from .decorators import subscriptions_decorator, sf_action_decorator
 from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
                             ShoppingCart, Tag)
 from rest_framework import status, viewsets
@@ -95,6 +95,7 @@ class CustomUserViewSet(UserViewSet):
         methods=['GET'],
         permission_classes=(IsAuthenticated,),
     )
+    @subscriptions_decorator
     def subscriptions(self, request):
         user = CustomUser.objects.all()
         data_source = user.filter(sub_fun__user=self.request.user)
@@ -103,12 +104,6 @@ class CustomUserViewSet(UserViewSet):
             context={'request': request},
             many=True,
         )
-
-        if not data_source.exists():
-            return Response(
-                {'Вы не подписались ни на кого'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         return self.get_paginated_response(sub_serializer.data)
 
 

@@ -1,14 +1,37 @@
 from django.contrib.auth import get_user_model
-from recipes.models import Ingredient, IngredientsRecipe, Recipe, Tag
+from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
+                            ShoppingCart, Tag)
 from recipes.validators import DataValidationHelpers
 from rest_framework import serializers
 from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
 
-from .decorators import RelatedObjectManager
-from .custom_utils import (CustomRecipeFieldsSerializer,
-                           RecipeIngredientsExtendedSerializer)
+from .decorators import customrecipefields_decorator, get_field_decorator
 from .image_service import ExtendedImageField
+from .managers import RelatedObjectManager
+
+
+class RecipeIngredientsExtendedSerializer(serializers.ModelSerializer):
+    id = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+    measurement_unit = serializers.SerializerMethodField()
+    amount = serializers.IntegerField()
+    get_id = get_field_decorator('id')
+    get_name = get_field_decorator('name')
+    get_measurement_unit = get_field_decorator('measurement_unit')
+
+
+class CustomRecipeFieldsSerializer(serializers.Serializer):
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
+
+    @customrecipefields_decorator(Favorite)
+    def get_is_favorited(self, instance):
+        pass
+
+    @customrecipefields_decorator(ShoppingCart)
+    def get_is_in_shopping_cart(self, instance):
+        pass
 
 
 class TagSerializer(serializers.ModelSerializer):
