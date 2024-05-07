@@ -1,15 +1,73 @@
 from functools import wraps
 
-from recipes.constant import User
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Exists, OuterRef
-from django.contrib.auth.models import AnonymousUser
-from recipes.validators import DataValidationHelpers
 from django.apps import apps
-from rest_framework.response import Response
+from django.contrib.auth.models import AnonymousUser
+from django.db.models import Exists, OuterRef
+from recipes.constant import User
+from recipes.validators import DataValidationHelpers
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from .managers import RelatedObjectManager
+
+
+def recipes_decorator(serializer):
+    def decorator(func):
+        @wraps(func)
+        def handler(self, instance):
+            request = self.context.get('request')
+            limit = int(request.query_params.get('recipes_limit', 0))
+
+            recipes = (
+                instance.recipes.all()[:limit]
+                if limit > 0
+                else instance.recipes.all()
+            )
+            serialized_recipes = serializer(
+                recipes,
+                many=True,
+                context={'request': request}
+            )
+            return func(self, instance, serialized_recipes.data)
+        return handler
+    return decorator
+
+
+def recipe_validate_decorator(func):
+    def handler(self, value):
+        value = DataValidationHelpers.validate_tags(value)
+        value = DataValidationHelpers.validate_ingredients(value)
+        return func(self, value)
+    return handler
+
+
+def recipe_update_decorator(func):
+    def handler(self, instance, validated_data):
+        recipe_fields = {
+            'tags': RelatedObjectManager.create_tags,
+            'ingredients': RelatedObjectManager.create_ingredients,
+        }
+        for field, create_method in recipe_fields.items():
+            if field in validated_data:
+                RelatedObjectManager.clear_related_fields(instance, field)
+                create_method(validated_data.pop(field), instance)
+        return func(self, instance, validated_data)
+    return handler
+
+
+def recipe_create_decorator(func):
+    def handler(self, validated_data):
+        tags = validated_data.pop('tags')
+        author = self.context.get('request').user
+        ingredients = validated_data.pop('ingredients')
+        recipe = func(self, validated_data, author)
+        RelatedObjectManager.create_tags(tags, recipe)
+        RelatedObjectManager.create_ingredients(ingredients, recipe)
+        return recipe
+    return handler
 
 
 def user_auth_decorator(view_func):

@@ -1,14 +1,8 @@
-from collections import defaultdict
-
 from django.contrib.auth import get_user_model
-from django.db.models import Sum
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from .decorators import subscriptions_decorator, sf_action_decorator
-from recipes.models import (Favorite, Ingredient, IngredientsRecipe, Recipe,
-                            ShoppingCart, Tag)
+from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import (IsAuthenticated,
@@ -24,6 +18,9 @@ from api.serializers import (IngredientSerializer,
                              RecipeCreateUpdateSerializer, RecipeSerializer,
                              SnippetRecipeSerializer, SubscrimeSerializer,
                              TagSerializer)
+
+from .decorators import sf_action_decorator, subscriptions_decorator
+from .managers import RelatedObjectManager
 
 CustomUser = get_user_model()
 
@@ -171,35 +168,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
         url_path='download_shopping_cart',
         permission_classes=(IsAuthenticated,),
     )
-    def get_generate_shopcart_file(self, request):
-        ingredients = IngredientsRecipe.objects.filter(
-            recipe__shoppingcart__user=self.request.user
+    def generate_shopping_cart_file(self, request):
+        uniq_ingredients = RelatedObjectManager.get_uniq_ingredients(
+            request.user
         )
-        uniq_ingredients = defaultdict(lambda: {'amount': 0, 'unit': ''})
-        dict_value = ingredients.values(
-            'ingredient__name',
-            'ingredient__measurement_unit',
-        )
-        amount = dict_value.annotate(amount=Sum('amount'))
-        for i in amount:
-            name = i['ingredient__name']
-            amount = i['amount']
-            measurement_unit = i['ingredient__measurement_unit']
-            uniq_ingredients[name]['amount'] += amount
-            uniq_ingredients[name]['unit'] = measurement_unit
-
-        shopcart_file_content = '\n'.join(
-            [
-                f'{name} - {data["amount"]} {data["unit"]}'
-                for name, data in uniq_ingredients.items()
-            ]
-        )
-        return self._create_download_response(
+        shopcart_file_content = ''
+        if uniq_ingredients:
+            shopcart_file_content = '\n'.join(
+                [(
+                    f'{i["ingredient__name"]}'
+                    f'- {i["total_amount"]}'
+                    f'- {i["ingredient__measurement_unit"]}'
+                ) for i in uniq_ingredients]
+            )
+            with open('shopping_cart.txt', 'w') as file:
+                file.write(shopcart_file_content)
+        print('Нет данных')
+        return RelatedObjectManager.create_download_response(
             shopcart_file_content,
-            filename='shopping-list.txt'
+            'shopping-list.txt'
         )
-
-    def _create_download_response(self, content, filename):
-        response = HttpResponse(content, content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename={filename}'
-        return response

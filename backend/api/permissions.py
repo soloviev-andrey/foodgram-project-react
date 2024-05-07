@@ -12,14 +12,11 @@ class IsAuthorOrReadOnly(BasePermission):
 
         return False
 
+    def AuthorAccess(self, user, obj):
+        return obj.author == user
+
     def has_object_permission(self, request, view, obj):
         if request.method in 'GET':
             return True
 
-        if obj.author == request.user:
-            return True
-
-        if request.user.is_staff:
-            return True
-
-        return False
+        return self.AuthorAccess(request.user, obj) or request.user.is_staff
