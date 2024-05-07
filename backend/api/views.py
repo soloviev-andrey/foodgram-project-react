@@ -41,7 +41,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 class CustomUserViewSet(UserViewSet):
     queryset = CustomUser.objects.all()
     serializer_class = ExtendedUserSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly,]
+    permission_classes = [IsAuthenticatedOrReadOnly, ]
 
     @action(
         detail=True,
@@ -71,8 +71,8 @@ class CustomUserViewSet(UserViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = [IsAuthorOrReadOnly,]
-    filter_backends = [DjangoFilterBackend,]
+    permission_classes = [IsAuthorOrReadOnly, ]
+    filter_backends = [DjangoFilterBackend, ]
     pagination_class = LimitPageNumberPagination
     filterset_class = RecipeFilter
 
