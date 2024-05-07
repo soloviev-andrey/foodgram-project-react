@@ -1,8 +1,10 @@
+import functools
 from functools import wraps
 
 from django.apps import apps
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Exists, OuterRef
+from django.shortcuts import get_object_or_404
 from recipes.constant import User
 from recipes.validators import DataValidationHelpers
 from rest_framework import status
@@ -12,6 +14,65 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .managers import RelatedObjectManager
+
+
+def subscribe_decorator(serializer_class):
+    def decorator(func):
+        @functools.wraps(func)
+        def handler(self, request, **kwargs):
+            sub_author = get_object_or_404(User, id=self.kwargs.get('id'))
+            if sub_author == self.request.user:
+                return Response(
+                    'Вам отказано в данном действии',
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if request.method == 'POST':
+                return create_subscription(
+                    request,
+                    self,
+                    sub_author,
+                    serializer_class
+                )
+            elif request.method == 'DELETE':
+                return delete_subscription(request, self, sub_author)
+            return func(self, request, sub_author=sub_author)
+        return handler
+    return decorator
+
+
+def create_subscription(request, view, sub_author, serializer_class):
+    sub_instance, new_create = apps.get_model(
+        'users',
+        'Subscrime'
+    ).objects.get_or_create(
+        user=request.user,
+        author=sub_author
+    )
+    if not new_create:
+        return Response(
+            'Уже есть подписка на данного автора',
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    serializer = serializer_class(sub_author, context={'request': request})
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+def delete_subscription(request, view, sub_author):
+    try:
+        sub_instance = apps.get_model(
+            'users',
+            'Subscrime'
+        ).objects.get(
+            user=request.user,
+            author=sub_author
+        )
+        sub_instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except apps.get_model('users', 'Subscrime').DoesNotExist:
+        return Response(
+            'Подписка не существует или еще не создана',
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 def recipes_decorator(serializer):

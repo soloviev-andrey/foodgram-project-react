@@ -8,7 +8,6 @@ from rest_framework.decorators import action
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
-from users.models import Subscrime
 from users.serializers import ExtendedUserSerializer
 
 from api.filters import IngredientsFilter, RecipeFilter
@@ -19,7 +18,8 @@ from api.serializers import (IngredientSerializer,
                              SnippetRecipeSerializer, SubscrimeSerializer,
                              TagSerializer)
 
-from .decorators import sf_action_decorator, subscriptions_decorator
+from .decorators import (sf_action_decorator, subscribe_decorator,
+                         subscriptions_decorator)
 from .managers import RelatedObjectManager
 
 CustomUser = get_user_model()
@@ -48,44 +48,9 @@ class CustomUserViewSet(UserViewSet):
         methods=['POST', 'DELETE'],
         permission_classes=(IsAuthenticated,),
     )
-    def subscribe(self, request, **kwargs):
-
-        sub_aut = get_object_or_404(CustomUser, id=self.kwargs.get('id'))
-        if sub_aut == self.request.user:
-            return Response(
-                'Вам отказано в данном действии',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if request.method == 'POST':
-            sub_instanse, new_creat = Subscrime.objects.get_or_create(
-                user=request.user, author=sub_aut
-            )
-            if not new_creat:
-                return Response(
-                    'Уже есть подписка на данного автора',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            serializer = SubscrimeSerializer(
-                sub_aut,
-                context={'request': request}
-            )
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
-        if request.method == 'DELETE':
-            try:
-                sub_instanse = Subscrime.objects.get(
-                    user=request.user,
-                    author=sub_aut
-                )
-                sub_instanse.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            except Subscrime.DoesNotExist:
-                return Response(
-                    'Подписка не существует, или еще не создана',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+    @subscribe_decorator(SubscrimeSerializer)
+    def subscribe(self, request, sub_author=None):
+        pass
 
     @action(
         detail=False,
