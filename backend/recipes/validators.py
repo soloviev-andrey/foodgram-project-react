@@ -3,7 +3,9 @@ from django.core.validators import (MaxValueValidator, MinValueValidator,
                                     RegexValidator)
 from django.db import models
 from django.shortcuts import get_object_or_404
+
 from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
 
 from .constant import MAX, MIN
 
@@ -82,22 +84,14 @@ class DataValidationHelpers:
         return value
 
     @staticmethod
-    def validate_amount(value):
-        if not MIN <= value <= MAX:
-            raise serializers.ValidationError(
-                'Кол-во должно быть от 1 до 5000!'
-            )
-        return value
-
-    @staticmethod
-    def validate_cooking_time(value):
-        if not MIN <= value <= MAX:
-            raise serializers.ValidationError(
-                'Пожалуйста, указывайте адекватное время готовки!'
-            )
-        return value
-
-    @staticmethod
     def create_relationships(self, items, model, recipe, **kwargs):
         for item in items:
             model.objects.create(recipe=recipe, **item, **kwargs)
+
+    @staticmethod
+    def subsribe_validate(self, data):
+        request = self.context.get('request')
+        sub_author_id = self.instance.id
+        if sub_author_id == request.user.id:
+            raise ValidationError('Вы не можете подписаться на самого себя.')
+        return data

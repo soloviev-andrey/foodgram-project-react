@@ -2,13 +2,11 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import (IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
-from users.serializers import ExtendedUserSerializer
 
 from api.filters import IngredientsFilter, RecipeFilter
 from api.pagination import LimitPageNumberPagination
@@ -17,6 +15,9 @@ from api.serializers import (IngredientSerializer,
                              RecipeCreateUpdateSerializer, RecipeSerializer,
                              SnippetRecipeSerializer, SubscrimeSerializer,
                              TagSerializer)
+
+from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
+from users.serializers import ExtendedUserSerializer
 
 from .decorators import (sf_action_decorator, subscribe_decorator,
                          subscriptions_decorator)
@@ -111,13 +112,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         try:
             obj = model.objects.get(user=request.user, recipe=recipe_obj)
-            obj.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
         except model.DoesNotExist:
             return Response(
                 'Рецепт не найден в списке.',
                 status=status.HTTP_400_BAD_REQUEST
             )
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @sf_action_decorator(ShoppingCart)
     def shopping_cart(self, request, pk=None):
@@ -148,7 +149,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
             with open('shopping_cart.txt', 'w') as file:
                 file.write(shopcart_file_content)
-        print('Нет данных')
         return RelatedObjectManager.create_download_response(
             shopcart_file_content,
             'shopping-list.txt'

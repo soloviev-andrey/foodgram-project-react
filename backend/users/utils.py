@@ -1,9 +1,13 @@
+# Стандартные библиотеки
 import base64
 
-from api.decorators import customrecipefields_decorator, get_field_decorator
+# Импорты сторонних библиотек
 from django.core.files.base import ContentFile
-from recipes.models import Favorite, ShoppingCart
 from rest_framework import serializers
+
+# Локальные импорты
+from api.decorators import customrecipefields_decorator, get_field_decorator
+from recipes.models import Favorite, ShoppingCart
 
 
 class ExtendedImageField(serializers.ImageField):
@@ -67,7 +71,7 @@ class CustomRecipeFieldsSerializer(serializers.Serializer):
 
 
 class BaseFielsSerializer(serializers.ModelSerializer):
-    '''Базовый класс для сериализаторов тэгов и ингредиентов'''
+    """Базовый класс для сериализаторов тэгов и ингредиентов"""
     class Meta:
         abstract = True
         fields = '__all__'

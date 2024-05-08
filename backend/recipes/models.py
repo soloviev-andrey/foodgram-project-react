@@ -5,7 +5,7 @@ from .validators import BaseUnitValid, Valid_color
 
 
 class Tag(models.Model):
-    '''Модель тега'''
+    """Модель тега"""
 
     name = models.CharField(
         'Название',
@@ -36,7 +36,7 @@ class Tag(models.Model):
 
 
 class Ingredient(models.Model):
-    '''Модель ингредиента'''
+    """Модель ингредиента"""
 
     name = models.CharField(
         'Наименование ингредиента',
@@ -58,7 +58,7 @@ class Ingredient(models.Model):
 
 
 class Recipe(models.Model):
-    '''Модель рецепта'''
+    """Модель рецепта"""
     tags = models.ManyToManyField(
         Tag,
         through='RecipeTag',
@@ -112,7 +112,7 @@ class Recipe(models.Model):
 
 
 class ListEntryModel(models.Model):
-    '''Абстрактная модель'''
+    """Абстрактная модель"""
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -125,9 +125,12 @@ class ListEntryModel(models.Model):
     class Meta:
         abstract = True
 
+    def __str__(self):
+        return f'{self.user} - {self.recipe}'
+
 
 class Favorite(ListEntryModel):
-    '''Модель для Избранное'''
+    """Модель для Избранное"""
     class Meta:
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранное'
@@ -137,7 +140,7 @@ class Favorite(ListEntryModel):
 
 
 class ShoppingCart(ListEntryModel):
-    '''Модель для списка покупок'''
+    """Модель для списка покупок"""
 
     class Meta:
         verbose_name = 'Список покупок'
@@ -150,19 +153,27 @@ class ShoppingCart(ListEntryModel):
 
 
 class RecipeTag(models.Model):
-    '''Промежудочная модель связи Recipe-Tag'''
+    """Промежудочная модель связи Recipe-Tag"""
     tag = models.ForeignKey(
         Tag,
         on_delete=models.CASCADE,
+        verbose_name='Тег'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
     )
 
+    class Meta:
+        verbose_name = 'Тег'
+        verbose_name_plural = 'Теги'
+
+    def __str__(self):
+        return f'{self.tag} - {self.recipe}'
+
 
 class IngredientsRecipe(models.Model):
-    '''Промежуточную модель связи Ingredients-Recipe'''
+    """Промежуточную модель связи Ingredients-Recipe"""
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
@@ -177,3 +188,10 @@ class IngredientsRecipe(models.Model):
     amount = BaseUnitValid(
         'Количество',
     )
+
+    class Meta:
+        verbose_name = 'ингредиент в рецепт'
+        verbose_name_plural = 'Кол-во ингредиентов в рецепте'
+
+    def __str__(self):
+        return f'{self.ingredient} - {self.recipe}'

@@ -1,6 +1,8 @@
 from django_filters import rest_framework as filters
-from recipes.models import Recipe, Tag
+
 from rest_framework.filters import BaseFilterBackend
+
+from recipes.models import Recipe, Tag
 
 from .decorators import filter_custom_decorator
 

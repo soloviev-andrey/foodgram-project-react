@@ -5,14 +5,15 @@ from django.apps import apps
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404
-from recipes.constant import User
-from recipes.validators import DataValidationHelpers
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from recipes.constant import User
+from recipes.validators import DataValidationHelpers
 from .managers import RelatedObjectManager
 
 
@@ -21,11 +22,6 @@ def subscribe_decorator(serializer_class):
         @functools.wraps(func)
         def handler(self, request, **kwargs):
             sub_author = get_object_or_404(User, id=self.kwargs.get('id'))
-            if sub_author == self.request.user:
-                return Response(
-                    'Вам отказано в данном действии',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             if request.method == 'POST':
                 return create_subscription(
                     request,
@@ -33,7 +29,7 @@ def subscribe_decorator(serializer_class):
                     sub_author,
                     serializer_class
                 )
-            elif request.method == 'DELETE':
+            if request.method == 'DELETE':
                 return delete_subscription(request, self, sub_author)
             return func(self, request, sub_author=sub_author)
         return handler

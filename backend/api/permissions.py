@@ -4,13 +4,7 @@ from rest_framework.permissions import BasePermission
 class IsAuthorOrReadOnly(BasePermission):
 
     def has_permission(self, request, view):
-        user = request.user.is_authenticated
-        if user:
-            return True
-        if request.method in 'GET':
-            return True
-
-        return False
+        return request.user.is_authenticated or request.method == 'GET'
 
     def AuthorAccess(self, user, obj):
         return obj.author == user

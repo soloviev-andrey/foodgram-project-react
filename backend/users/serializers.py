@@ -1,11 +1,16 @@
+# Стандартные библиотеки
+from rest_framework import serializers
+
+# Импорты сторонних библиотек
 from djoser.serializers import UserCreateSerializer, UserSerializer
+
+# Локальные импорты
 from api.decorators import subscribed_decorator, user_auth_decorator
 from recipes.constant import User
-from rest_framework import serializers
 
 
 class ExtendedUserSerializer(UserSerializer):
-    '''Сериализатор отображения пользователя'''
+    """Сериализатор отображения пользователя"""
     is_subscribed = serializers.SerializerMethodField()
 
     @user_auth_decorator
@@ -29,7 +34,7 @@ class ExtendedUserSerializer(UserSerializer):
 
 
 class ExtendedAddUserSerializer(UserCreateSerializer):
-    '''Сериализатор регистрации и создания пользователя'''
+    """Сериализатор регистрации и создания пользователя"""
     class Meta:
         model = User
         fields = (

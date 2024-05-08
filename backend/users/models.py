@@ -7,7 +7,7 @@ EMAIL_LEN = 254
 
 
 class CustomUser(AbstractUser):
-    '''Модель Пользователя'''
+    """Модель Пользователя"""
     username = models.CharField(
         'НИК пользователя',
         max_length=MAX_LEN,
@@ -45,7 +45,7 @@ class CustomUser(AbstractUser):
 
 
 class Subscrime(models.Model):
-    '''Модель подписки'''
+    """Модель подписки"""
 
     user = models.ForeignKey(
         CustomUser,

@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
+from rest_framework import serializers
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 from recipes.models import Ingredient, IngredientsRecipe, Recipe, Tag
 from recipes.validators import DataValidationHelpers
-from rest_framework import serializers
 from users.serializers import ExtendedUserSerializer
 from users.utils import (BaseFielsSerializer, CustomRecipeFieldsSerializer,
                          ExtendedImageField,
@@ -11,21 +13,25 @@ from .decorators import (recipe_create_decorator, recipe_update_decorator,
                          recipe_validate_decorator, recipes_decorator)
 from .managers import RelatedObjectManager
 
+MIN_AMOUNT = 1
+MAX_AMOUNT = 32000
+MAX_FILE_SIZE = 1024 * 1024
+
 
 class TagSerializer(BaseFielsSerializer):
-    '''Сериализатор тэгов'''
+    """Сериализатор тэгов"""
     class Meta(BaseFielsSerializer.Meta):
         model = Tag
 
 
 class IngredientSerializer(BaseFielsSerializer):
-    '''Сериализатор ингредиентов'''
+    """Сериализатор ингредиентов"""
     class Meta(BaseFielsSerializer.Meta):
         model = Ingredient
 
 
 class IngredientsRecipeSerializer(RecipeIngredientsExtendedSerializer):
-    '''Сериализатор для вывода информация согласно тз'''
+    """Сериализатор для вывода информация согласно тз"""
     class Meta:
         model = IngredientsRecipe
         fields = (
@@ -37,7 +43,7 @@ class IngredientsRecipeSerializer(RecipeIngredientsExtendedSerializer):
 
 
 class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
-    '''Сериализатор добавления ингредиентов в рецепт'''
+    """Сериализатор добавления ингредиентов в рецепт"""
     id = serializers.IntegerField(
         validators=[
             DataValidationHelpers.validate_id
@@ -45,7 +51,8 @@ class CreateIngredientsRecipeSerializer(serializers.ModelSerializer):
     )
     amount = serializers.IntegerField(
         validators=[
-            DataValidationHelpers.validate_amount
+            MinValueValidator(MIN_AMOUNT),
+            MaxValueValidator(MAX_AMOUNT)
         ]
     )
 
@@ -61,14 +68,14 @@ class RecipeSerializer(
     CustomRecipeFieldsSerializer,
     serializers.ModelSerializer
 ):
-    '''Сериализатор рецепта'''
+    """Сериализатор рецепта"""
     ingredients = IngredientsRecipeSerializer(
         many=True,
         source='ingredients_recipe'
     )
     image = ExtendedImageField(
         valid_formats=['jpg', 'jpeg', 'png'],
-        max_size=1024 * 1024
+        max_size=MAX_FILE_SIZE
     )
     tags = TagSerializer(many=True)
     author = ExtendedUserSerializer(read_only=True)
@@ -101,7 +108,7 @@ class SnippetRecipeSerializer(RecipeSerializer):
 
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
-    '''Сериализатор добавления и обновления рецепта'''
+    """Сериализатор добавления и обновления рецепта"""
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
         many=True,
@@ -110,11 +117,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     ingredients = CreateIngredientsRecipeSerializer(many=True)
     image = ExtendedImageField(
         valid_formats=['jpg', 'jpeg', 'png'],
-        max_size=1024 * 1024
+        max_size=MAX_FILE_SIZE
     )
     cooking_time = serializers.IntegerField(
         validators=[
-            DataValidationHelpers.validate_cooking_time
+            MinValueValidator(MIN_AMOUNT),
+            MaxValueValidator(MAX_AMOUNT)
         ]
     )
 
@@ -149,9 +157,13 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
 
 
 class SubscrimeSerializer(ExtendedUserSerializer):
-    '''Сериализатор для подписки пользователя'''
+    """Сериализатор для подписки пользователя"""
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
+
+    def validate(self, data):
+        validated_data = DataValidationHelpers.subsribe_validate(data)
+        return validated_data
 
     @recipes_decorator(SnippetRecipeSerializer)
     def get_recipes(self, instance, serialized_data):

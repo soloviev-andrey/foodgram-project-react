@@ -1,16 +1,19 @@
-from recipes.models import IngredientsRecipe, Recipe, RecipeTag
-from django.http import HttpResponse
-from django.db.models.functions import Coalesce
 from django.db.models import Sum
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse
+from recipes.models import IngredientsRecipe, Recipe, RecipeTag
 
 
 class BulkRelatedObjectCreator:
 
     def create_related_objects(self, objects, recipe, model, field_mapping):
+        related_objects = []
+
         for obj in objects:
             data = {field_mapping[key]: value for key, value in obj.items()}
             data['recipe'] = recipe
-            model.objects.create(**data)
+            related_objects.append(model(**data))
+        model.objects.all().bulk_create(related_objects)
 
 
 class RelatedObjectManager:
